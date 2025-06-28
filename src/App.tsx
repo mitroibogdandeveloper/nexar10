@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import ListingsPage from './pages/ListingsPage';
 import ListingDetailPage from './pages/ListingDetailPage';
 import CreateListingPage from './pages/CreateListingPage';
+import EditListingPage from './pages/EditListingPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 import AuthPage from './pages/AuthPage';
@@ -154,6 +155,7 @@ function App() {
             <Route path="/anunturi" element={<ListingsPage />} />
             <Route path="/anunt/:id" element={<ListingDetailPage />} />
             <Route path="/adauga-anunt" element={<CreateListingPage />} />
+            <Route path="/editeaza-anunt/:id" element={<EditListingPage />} />
             <Route path="/profil" element={<ProfilePage />} />
             <Route path="/profil/:id" element={<ProfilePage />} />
             <Route path="/admin" element={<AdminPage />} />
