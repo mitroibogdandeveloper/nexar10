@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Check, AlertTriangle, Camera } from 'lucide-react';
-import { listings, isAuthenticated, supabase } from '../lib/supabase';
+import { listings, isAuthenticated, supabase, romanianCities } from '../lib/supabase';
 import SuccessModal from '../components/SuccessModal';
 
 const CreateListingPage = () => {
@@ -14,6 +14,7 @@ const CreateListingPage = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdListingId, setCreatedListingId] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -38,6 +39,17 @@ const CreateListingPage = () => {
 
   // Check if user is logged in and load profile
   useEffect(() => {
+    // Set a timeout to show an error message if loading takes too long
+    const timeout = setTimeout(() => {
+      if (isLoadingProfile) {
+        console.warn('Loading timeout reached in CreateListingPage');
+        setIsLoadingProfile(false);
+        setErrors({ profile: 'Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.' });
+      }
+    }, 15000); // 15 seconds timeout
+    
+    setLoadingTimeout(timeout);
+    
     const checkAuthAndLoadProfile = async () => {
       try {
         setIsLoadingProfile(true);
@@ -89,6 +101,10 @@ const CreateListingPage = () => {
     };
     
     checkAuthAndLoadProfile();
+    
+    return () => {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+    };
   }, [navigate]);
 
   const steps = [
@@ -107,20 +123,6 @@ const CreateListingPage = () => {
   const fuelTypes = ['Benzină', 'Electric', 'Hibrid'];
   const transmissionTypes = ['Manual', 'Automat', 'Semi-automat'];
   const conditions = ['Nouă', 'Excelentă', 'Foarte bună', 'Bună', 'Satisfăcătoare'];
-  
-  // Lista completă a orașelor din România
-  const romanianCities = [
-    'București', 'Cluj-Napoca', 'Timișoara', 'Iași', 'Constanța', 'Craiova', 'Brașov', 'Galați',
-    'Ploiești', 'Oradea', 'Bacău', 'Pitești', 'Arad', 'Sibiu', 'Târgu Mureș', 'Baia Mare',
-    'Buzău', 'Botoșani', 'Satu Mare', 'Râmnicu Vâlcea', 'Drobeta-Turnu Severin', 'Suceava',
-    'Piatra Neamț', 'Târgu Jiu', 'Tulcea', 'Focșani', 'Bistrița', 'Reșița', 'Alba Iulia',
-    'Deva', 'Hunedoara', 'Slatina', 'Vaslui', 'Călărași', 'Giurgiu', 'Slobozia', 'Zalău',
-    'Turda', 'Mediaș', 'Onești', 'Gheorgheni', 'Pașcani', 'Dej', 'Reghin', 'Roman',
-    'Câmpina', 'Caracal', 'Făgăraș', 'Lugoj', 'Mangalia', 'Moreni', 'Oltenița', 'Petroșani',
-    'Râmnicu Sărat', 'Roșiorii de Vede', 'Săcele', 'Sebeș', 'Sfântu Gheorghe', 'Tecuci',
-    'Toplița', 'Voluntari', 'Pantelimon', 'Popești-Leordeni', 'Chiajna', 'Otopeni',
-    'Sector 1', 'Sector 2', 'Sector 3', 'Sector 4', 'Sector 5', 'Sector 6'
-  ];
   
   const availableFeatures = [
     'ABS', 'Control tracțiune', 'Suspensie reglabilă', 'Frâne Brembo',
@@ -429,7 +431,7 @@ const CreateListingPage = () => {
           <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Profil incomplet</h2>
           <p className="text-gray-600 mb-6">
-            Pentru a adăuga un anunț, trebuie să îți completezi profilul mai întâi.
+            {errors.profile || 'Pentru a adăuga un anunț, trebuie să îți completezi profilul mai întâi.'}
           </p>
           <button 
             onClick={() => navigate('/profil')}
@@ -771,8 +773,32 @@ const CreateListingPage = () => {
                       }`}
                     >
                       <option value="">Selectează orașul</option>
+                      <option value="București S1">București S1</option>
+                      <option value="București S2">București S2</option>
+                      <option value="București S3">București S3</option>
+                      <option value="București S4">București S4</option>
+                      <option value="București S5">București S5</option>
+                      <option value="București S6">București S6</option>
+                      <option value="Cluj-Napoca">Cluj-Napoca</option>
+                      <option value="Timișoara">Timișoara</option>
+                      <option value="Iași">Iași</option>
+                      <option value="Constanța">Constanța</option>
+                      <option value="Brașov">Brașov</option>
+                      <option value="Craiova">Craiova</option>
+                      <option value="Galați">Galați</option>
+                      <option value="Oradea">Oradea</option>
+                      <option value="Ploiești">Ploiești</option>
+                      <option value="Sibiu">Sibiu</option>
+                      <option value="Bacău">Bacău</option>
+                      <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+                      <option value="Rm. Vâlcea">Rm. Vâlcea</option>
                       {romanianCities.map(city => (
-                        <option key={city} value={city}>{city}</option>
+                        city !== "București" && 
+                        !city.startsWith("București S") && 
+                        city !== "Râmnicu Vâlcea" && 
+                        city !== "Rm. Vâlcea" && (
+                          <option key={city} value={city}>{city}</option>
+                        )
                       ))}
                     </select>
                     {errors.location && (

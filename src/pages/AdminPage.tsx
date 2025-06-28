@@ -19,6 +19,7 @@ const AdminPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentListing, setCurrentListing] = useState<any>(null);
   const [editedListing, setEditedListing] = useState<any>({});
@@ -68,6 +69,8 @@ const AdminPage = () => {
     } catch (err) {
       console.error('Error checking admin status:', err);
       setError('A apărut o eroare la verificarea statusului de administrator');
+      navigate('/');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -208,34 +211,28 @@ const AdminPage = () => {
     if (!confirm('Ești sigur că vrei să ștergi acest utilizator? Toate anunțurile sale vor fi șterse definitiv.')) return;
     
     try {
-      // Dezactivăm utilizatorul mai întâi
-      const { error: suspendError } = await admin.toggleUserStatus(userId, true);
+      setIsDeletingUser(userId);
       
-      if (suspendError) {
-        console.error('Error suspending user:', suspendError);
-        alert('Eroare la suspendarea utilizatorului');
-        return;
-      }
+      const { error } = await admin.deleteUser(userId);
       
-      // Ștergem toate anunțurile utilizatorului
-      const { error: deleteListingsError } = await supabase
-        .from('listings')
-        .delete()
-        .eq('seller_id', userId);
-      
-      if (deleteListingsError) {
-        console.error('Error deleting user listings:', deleteListingsError);
-        alert('Eroare la ștergerea anunțurilor utilizatorului');
+      if (error) {
+        console.error('Error deleting user:', error);
+        alert('Eroare la ștergerea utilizatorului');
         return;
       }
       
       // Actualizăm lista de utilizatori
       setUsers(prev => prev.filter(user => user.user_id !== userId));
       
+      // Reîncărcăm și anunțurile pentru a reflecta schimbările
+      loadListings();
+      
       alert('Utilizatorul și toate anunțurile sale au fost șterse cu succes!');
     } catch (err) {
       console.error('Error deleting user:', err);
       alert('A apărut o eroare la ștergerea utilizatorului');
+    } finally {
+      setIsDeletingUser(null);
     }
   };
 
@@ -766,10 +763,15 @@ const AdminPage = () => {
                                 </button>
                                 <button
                                   onClick={() => handleDeleteUser(user.user_id)}
-                                  className="p-1 text-red-500 hover:text-red-700 transition-colors"
-                                  title="Șterge utilizatorul și toate anunțurile sale"
+                                  disabled={isDeletingUser === user.user_id}
+                                  className="p-1 text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+                                  title="Șterge utilizatorul"
                                 >
-                                  <Trash2 className="h-5 w-5" />
+                                  {isDeletingUser === user.user_id ? (
+                                    <div className="h-5 w-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : (
+                                    <Trash2 className="h-5 w-5" />
+                                  )}
                                 </button>
                               </div>
                             </td>
@@ -885,14 +887,9 @@ const AdminPage = () => {
                       onChange={(e) => setEditedListing(prev => ({ ...prev, category: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
                     >
-                      <option value="sport">Sport</option>
-                      <option value="touring">Touring</option>
-                      <option value="cruiser">Cruiser</option>
-                      <option value="adventure">Adventure</option>
-                      <option value="naked">Naked</option>
-                      <option value="scooter">Scooter</option>
-                      <option value="enduro">Enduro</option>
-                      <option value="chopper">Chopper</option>
+                      {categories.map(cat => (
+                        <option key={cat.toLowerCase()} value={cat.toLowerCase()}>{cat}</option>
+                      ))}
                     </select>
                   </div>
                   
@@ -905,16 +902,9 @@ const AdminPage = () => {
                       onChange={(e) => setEditedListing(prev => ({ ...prev, brand: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
                     >
-                      <option value="Yamaha">Yamaha</option>
-                      <option value="Honda">Honda</option>
-                      <option value="Suzuki">Suzuki</option>
-                      <option value="Kawasaki">Kawasaki</option>
-                      <option value="BMW">BMW</option>
-                      <option value="Ducati">Ducati</option>
-                      <option value="KTM">KTM</option>
-                      <option value="Aprilia">Aprilia</option>
-                      <option value="Triumph">Triumph</option>
-                      <option value="Harley-Davidson">Harley-Davidson</option>
+                      {brands.map(brand => (
+                        <option key={brand} value={brand}>{brand}</option>
+                      ))}
                     </select>
                   </div>
                   
@@ -998,6 +988,18 @@ const AdminPage = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Culoare
+                    </label>
+                    <input
+                      type="text"
+                      value={editedListing.color}
+                      onChange={(e) => setEditedListing(prev => ({ ...prev, color: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Stare
                     </label>
                     <select
@@ -1015,41 +1017,33 @@ const AdminPage = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Culoare
-                    </label>
-                    <input
-                      type="text"
-                      value={editedListing.color}
-                      onChange={(e) => setEditedListing(prev => ({ ...prev, color: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Locație
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={editedListing.location}
                       onChange={(e) => setEditedListing(prev => ({ ...prev, location: e.target.value }))}
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
-                    </label>
-                    <select
-                      value={editedListing.status}
-                      onChange={(e) => setEditedListing(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
                     >
-                      <option value="active">Activ</option>
-                      <option value="pending">În așteptare</option>
-                      <option value="sold">Vândut</option>
-                      <option value="rejected">Respins</option>
+                      <option value="">Selectează orașul</option>
+                      <option value="București S1">București S1</option>
+                      <option value="București S2">București S2</option>
+                      <option value="București S3">București S3</option>
+                      <option value="București S4">București S4</option>
+                      <option value="București S5">București S5</option>
+                      <option value="București S6">București S6</option>
+                      <option value="Cluj-Napoca">Cluj-Napoca</option>
+                      <option value="Timișoara">Timișoara</option>
+                      <option value="Iași">Iași</option>
+                      <option value="Constanța">Constanța</option>
+                      <option value="Brașov">Brașov</option>
+                      <option value="Craiova">Craiova</option>
+                      <option value="Galați">Galați</option>
+                      <option value="Oradea">Oradea</option>
+                      <option value="Ploiești">Ploiești</option>
+                      <option value="Sibiu">Sibiu</option>
+                      <option value="Bacău">Bacău</option>
+                      <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+                      <option value="Rm. Vâlcea">Rm. Vâlcea</option>
                     </select>
                   </div>
                 </div>
@@ -1064,6 +1058,22 @@ const AdminPage = () => {
                     rows={5}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
                   />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={editedListing.status}
+                    onChange={(e) => setEditedListing(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                  >
+                    <option value="active">Activ</option>
+                    <option value="pending">În așteptare</option>
+                    <option value="sold">Vândut</option>
+                    <option value="rejected">Respins</option>
+                  </select>
                 </div>
                 
                 <div className="flex items-center">

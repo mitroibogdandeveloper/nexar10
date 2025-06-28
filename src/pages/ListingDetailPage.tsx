@@ -37,15 +37,31 @@ const ListingDetailPage = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [isFavorite, setIsFavorite] = useState(false);
 	const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+	const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 
 	// Scroll to top when component mounts
 	useEffect(() => {
 		window.scrollTo(0, 0);
 
+		// Set a timeout to show an error message if loading takes too long
+		const timeout = setTimeout(() => {
+			if (isLoading) {
+				console.warn('Loading timeout reached in ListingDetailPage');
+				setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
+				setIsLoading(false);
+			}
+		}, 15000); // 15 seconds timeout
+		
+		setLoadingTimeout(timeout);
+
 		if (id) {
 			loadListing(id);
 			checkIfFavorite(id);
 		}
+		
+		return () => {
+			if (loadingTimeout) clearTimeout(loadingTimeout);
+		};
 	}, [id]);
 
 	const loadListing = async (listingId: string) => {
@@ -630,13 +646,9 @@ const ListingDetailPage = () => {
 									<span>Descriere Detaliată</span>
 								</h3>
 								<div className="prose max-w-none text-gray-700 leading-relaxed text-sm sm:text-base">
-									{listing.description
-										.split("\n")
-										.map((paragraph: string, index: number) => (
-											<p key={index} className="mb-3 sm:mb-4 whitespace-pre-wrap">
-												{paragraph}
-											</p>
-										))}
+									<div className="whitespace-pre-wrap">
+										{listing.description}
+									</div>
 								</div>
 							</div>
 						</div>
