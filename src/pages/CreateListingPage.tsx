@@ -50,62 +50,62 @@ const CreateListingPage = () => {
     
     setLoadingTimeout(timeout);
     
-    const checkAuthAndLoadProfile = async () => {
-      try {
-        setIsLoadingProfile(true);
-        
-        const isLoggedIn = await isAuthenticated();
-        if (!isLoggedIn) {
-          navigate('/auth');
-          return;
-        }
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          navigate('/auth');
-          return;
-        }
-
-        // Get user profile from database
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Error loading profile:', profileError);
-          // If profile doesn't exist, redirect to profile page to create it
-          navigate('/profil');
-          return;
-        }
-
-        if (profileData) {
-          setUserProfile(profileData);
-          
-          // Pre-fill form with user data
-          setFormData(prev => ({
-            ...prev,
-            email: profileData.email || '',
-            phone: profileData.phone || '',
-            location: profileData.location || ''
-          }));
-        }
-      } catch (error) {
-        console.error('Error checking auth and loading profile:', error);
-        navigate('/auth');
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
-    
     checkAuthAndLoadProfile();
     
     return () => {
       if (loadingTimeout) clearTimeout(loadingTimeout);
     };
-  }, [navigate]);
+  }, []);
+
+  const checkAuthAndLoadProfile = async () => {
+    try {
+      setIsLoadingProfile(true);
+      
+      const isLoggedIn = await isAuthenticated();
+      if (!isLoggedIn) {
+        navigate('/auth');
+        return;
+      }
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
+
+      // Get user profile from database
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error loading profile:', profileError);
+        // If profile doesn't exist, redirect to profile page to create it
+        navigate('/profil');
+        return;
+      }
+
+      if (profileData) {
+        setUserProfile(profileData);
+        
+        // Pre-fill form with user data
+        setFormData(prev => ({
+          ...prev,
+          email: profileData.email || '',
+          phone: profileData.phone || '',
+          location: profileData.location || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error checking auth and loading profile:', error);
+      navigate('/auth');
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
 
   const steps = [
     { id: 1, title: 'Informații de bază', description: 'Detalii despre motocicletă' },
@@ -791,10 +791,8 @@ const CreateListingPage = () => {
                       <option value="Sibiu">Sibiu</option>
                       <option value="Bacău">Bacău</option>
                       <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-                      <option value="Rm. Vâlcea">Rm. Vâlcea</option>
                       {romanianCities.map(city => (
-                        city !== "București" && 
-                        !city.startsWith("București S") && 
+                        !city.startsWith("București") && 
                         city !== "Râmnicu Vâlcea" && 
                         city !== "Rm. Vâlcea" && (
                           <option key={city} value={city}>{city}</option>

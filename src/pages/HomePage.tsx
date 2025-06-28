@@ -20,7 +20,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 } from "lucide-react";
-import { listings } from "../lib/supabase";
+import { listings, romanianCities } from "../lib/supabase";
 
 const HomePage = () => {
 	const [searchParams] = useSearchParams();
@@ -702,7 +702,13 @@ const HomePage = () => {
 											<option value="Sibiu">Sibiu</option>
 											<option value="Bacău">Bacău</option>
 											<option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-											<option value="Rm. Vâlcea">Rm. Vâlcea</option>
+											{romanianCities.map(city => (
+                        !city.startsWith("București") && 
+                        city !== "Râmnicu Vâlcea" && 
+                        city !== "Rm. Vâlcea" && (
+                          <option key={city} value={city}>{city}</option>
+                        )
+                      ))}
 										</select>
 									</div>
 
@@ -877,7 +883,13 @@ const HomePage = () => {
 											<option value="Sibiu">Sibiu</option>
 											<option value="Bacău">Bacău</option>
 											<option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-											<option value="Rm. Vâlcea">Rm. Vâlcea</option>
+											{romanianCities.map(city => (
+                        !city.startsWith("București") && 
+                        city !== "Râmnicu Vâlcea" && 
+                        city !== "Rm. Vâlcea" && (
+                          <option key={city} value={city}>{city}</option>
+                        )
+                      ))}
 										</select>
 									</div>
 

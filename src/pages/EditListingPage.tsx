@@ -17,6 +17,7 @@ const EditListingPage = () => {
   const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [filteredCities, setFilteredCities] = useState<string[]>([]);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -55,7 +56,22 @@ const EditListingPage = () => {
   ];
 
   useEffect(() => {
+    // Set a timeout to show an error message if loading takes too long
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('Loading timeout reached in EditListingPage');
+        setErrors({ general: 'Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.' });
+        setIsLoading(false);
+      }
+    }, 15000); // 15 seconds timeout
+    
+    setLoadingTimeout(timeout);
+    
     loadListing();
+    
+    return () => {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+    };
   }, [id]);
 
   const loadListing = async () => {
@@ -704,52 +720,47 @@ const EditListingPage = () => {
                     Locația *
                   </label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <select
                       value={formData.location}
-                      onChange={(e) => handleLocationChange(e.target.value)}
-                      onFocus={() => {
-                        if (formData.location.length > 0) {
-                          const filtered = romanianCities.filter(city =>
-                            city.toLowerCase().includes(formData.location.toLowerCase())
-                          ).slice(0, 10);
-                          setFilteredCities(filtered);
-                          setShowLocationDropdown(true);
-                        }
-                      }}
-                      onBlur={() => {
-                        // Delay pentru a permite click-ul pe opțiuni
-                        setTimeout(() => setShowLocationDropdown(false), 200);
-                      }}
+                      onChange={(e) => handleInputChange('location', e.target.value)}
                       className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
                         errors.location ? 'border-red-500' : 'border-gray-300'
                       }`}
-                      placeholder="ex: București"
-                    />
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    
-                    {/* Dropdown cu orașe */}
-                    {showLocationDropdown && filteredCities.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {filteredCities.map((city, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => selectCity(city)}
-                            className="w-full text-left px-4 py-2 hover:bg-nexar-accent hover:text-white transition-colors text-sm border-b border-gray-100 last:border-b-0"
-                          >
-                            {city}
-                          </button>
-                        ))}
-                      </div>
+                    >
+                      <option value="">Selectează orașul</option>
+                      <option value="București S1">București S1</option>
+                      <option value="București S2">București S2</option>
+                      <option value="București S3">București S3</option>
+                      <option value="București S4">București S4</option>
+                      <option value="București S5">București S5</option>
+                      <option value="București S6">București S6</option>
+                      <option value="Cluj-Napoca">Cluj-Napoca</option>
+                      <option value="Timișoara">Timișoara</option>
+                      <option value="Iași">Iași</option>
+                      <option value="Constanța">Constanța</option>
+                      <option value="Brașov">Brașov</option>
+                      <option value="Craiova">Craiova</option>
+                      <option value="Galați">Galați</option>
+                      <option value="Oradea">Oradea</option>
+                      <option value="Ploiești">Ploiești</option>
+                      <option value="Sibiu">Sibiu</option>
+                      <option value="Bacău">Bacău</option>
+                      <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+                      {romanianCities.map(city => (
+                        !city.startsWith("București") && 
+                        city !== "Râmnicu Vâlcea" && 
+                        city !== "Rm. Vâlcea" && (
+                          <option key={city} value={city}>{city}</option>
+                        )
+                      ))}
+                    </select>
+                    {errors.location && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        {errors.location}
+                      </p>
                     )}
                   </div>
-                  {errors.location && (
-                    <p className="mt-1 text-sm text-red-600 flex items-center">
-                      <AlertTriangle className="h-4 w-4 mr-1" />
-                      {errors.location}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -865,7 +876,7 @@ const EditListingPage = () => {
                 />
                 <div className="flex justify-between items-center mt-1">
                   {errors.description ? (
-                    <p className="text-sm text-red-600 flex items-center">
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
                       <AlertTriangle className="h-4 w-4 mr-1" />
                       {errors.description}
                     </p>

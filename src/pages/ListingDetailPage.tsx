@@ -646,7 +646,7 @@ const ListingDetailPage = () => {
 									<span>Descriere Detaliată</span>
 								</h3>
 								<div className="prose max-w-none text-gray-700 leading-relaxed text-sm sm:text-base">
-									<div className="whitespace-pre-wrap">
+									<div className="whitespace-pre-wrap break-words">
 										{listing.description}
 									</div>
 								</div>

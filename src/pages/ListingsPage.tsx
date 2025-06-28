@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Filter, Star, MapPin, Calendar, Gauge, ChevronLeft, ChevronRight, Settings, Fuel, User, X, SlidersHorizontal, Building } from 'lucide-react';
-import { listings, supabase } from '../lib/supabase';
+import { listings, supabase, romanianCities } from '../lib/supabase';
 
 const ListingsPage = () => {
   // On desktop, show filters by default. On mobile, hide them by default
@@ -615,7 +615,13 @@ const ListingsPage = () => {
                       <option value="Sibiu">Sibiu</option>
                       <option value="Bacău">Bacău</option>
                       <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-                      <option value="Rm. Vâlcea">Rm. Vâlcea</option>
+                      {romanianCities.map(city => (
+                        !city.startsWith("București") && 
+                        city !== "Râmnicu Vâlcea" && 
+                        city !== "Rm. Vâlcea" && (
+                          <option key={city} value={city}>{city}</option>
+                        )
+                      ))}
                     </select>
                   </div>
 
