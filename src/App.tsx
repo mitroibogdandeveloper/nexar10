@@ -10,14 +10,14 @@ import EditListingPage from './pages/EditListingPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 import AuthPage from './pages/AuthPage';
-import AuthConfirmPage from './pages/AuthConfirmPage';
-import PasswordResetPage from './pages/PasswordResetPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import CookiesPage from './pages/CookiesPage';
 import FixSupabasePage from './pages/FixSupabasePage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import AuthConfirmPage from './pages/AuthConfirmPage';
+import PasswordResetPage from './pages/PasswordResetPage';
 
 // Scroll to top on route change
 function ScrollToTop() {

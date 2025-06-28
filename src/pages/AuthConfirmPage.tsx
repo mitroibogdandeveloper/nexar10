@@ -1,126 +1,105 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, AlertTriangle, Home, LogIn } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const AuthConfirmPage = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(true);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const handleEmailConfirmation = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Verificăm dacă avem o sesiune validă după confirmarea email-ului
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error checking session:', error);
-          setError('A apărut o eroare la confirmarea contului. Te rugăm să încerci din nou.');
-          return;
-        }
-        
-        if (data?.session) {
-          console.log('Email confirmed successfully, session found:', data.session);
-          setIsConfirmed(true);
-          
-          // Actualizăm starea utilizatorului în localStorage
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          if (user) {
-            // Obținem profilul utilizatorului
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', user.id)
-              .single();
-            
-            if (profile) {
-              const userData = {
-                id: user.id,
-                name: profile.name,
-                email: profile.email,
-                sellerType: profile.seller_type,
-                isAdmin: profile.is_admin || user.email === 'admin@nexar.ro',
-                isLoggedIn: true
-              };
-              
-              localStorage.setItem('user', JSON.stringify(userData));
-            }
-          }
-        } else {
-          console.error('No session found after email confirmation');
-          setError('Linkul de confirmare a expirat sau este invalid. Te rugăm să încerci din nou.');
-        }
-      } catch (err) {
-        console.error('Error during email confirmation:', err);
-        setError('A apărut o eroare neașteptată. Te rugăm să încerci din nou.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    handleEmailConfirmation();
-  }, [navigate]);
+    window.scrollTo(0, 0);
+    confirmEmail();
+  }, []);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
-          <div className="w-16 h-16 border-4 border-nexar-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Se procesează confirmarea contului...</p>
-        </div>
-      </div>
-    );
-  }
+  const confirmEmail = async () => {
+    try {
+      setIsConfirming(true);
+      setError(null);
+      
+      // Obținem token-ul din URL
+      const params = new URLSearchParams(location.search);
+      const token = params.get('token');
+      const type = params.get('type');
+      
+      if (!token || type !== 'email_confirm') {
+        setError('Link invalid sau expirat. Te rugăm să soliciți un nou link de confirmare.');
+        setIsConfirming(false);
+        return;
+      }
+      
+      // Confirmăm email-ul
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'email_change'
+      });
+      
+      if (error) {
+        console.error('Error confirming email:', error);
+        setError('A apărut o eroare la confirmarea email-ului. Te rugăm să încerci din nou sau să contactezi suportul.');
+        setIsConfirming(false);
+        return;
+      }
+      
+      // Succes
+      setIsSuccess(true);
+      setIsConfirming(false);
+      
+    } catch (err) {
+      console.error('Error in confirmEmail:', err);
+      setError('A apărut o eroare neașteptată. Te rugăm să încerci din nou sau să contactezi suportul.');
+      setIsConfirming(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-          {isConfirmed ? (
-            <>
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="h-10 w-10 text-green-500" />
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/Nexar - logo_black & red.png" 
+              alt="Nexar Logo" 
+              className="h-24 w-auto"
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (target.src.includes('Nexar - logo_black & red.png')) {
+                  target.src = '/nexar-logo.png';
+                } else if (target.src.includes('nexar-logo.png')) {
+                  target.src = '/image.png';
+                } else {
+                  target.style.display = 'none';
+                }
+              }}
+            />
+          </div>
+          
+          {isConfirming ? (
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-nexar-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                Se confirmă email-ul...
+              </h2>
+              <p className="text-gray-600">
+                Te rugăm să aștepți câteva momente.
+              </p>
+            </div>
+          ) : isSuccess ? (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
                 Cont confirmat cu succes!
               </h2>
-              <p className="text-gray-600 mb-8">
+              <p className="text-gray-600 mb-6">
                 Bine ai venit! Contul tău Nexar a fost confirmat cu succes. Te poți bucura acum de toate funcționalitățile platformei. Dacă ai nevoie de asistență sau ai întrebări, echipa noastră de suport îți stă la dispoziție.
               </p>
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <Link
-                  to="/"
-                  className="flex-1 bg-nexar-accent text-white py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors flex items-center justify-center space-x-2"
-                >
-                  <Home className="h-5 w-5" />
-                  <span>Pagina Principală</span>
-                </Link>
-                <Link
-                  to="/adauga-anunt"
-                  className="flex-1 bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center space-x-2"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span>Adaugă Anunț</span>
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertTriangle className="h-10 w-10 text-red-500" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Confirmare eșuată
-              </h2>
-              <p className="text-gray-600 mb-8">
-                {error || 'A apărut o eroare la confirmarea contului. Te rugăm să încerci din nou sau să contactezi suportul.'}
-              </p>
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                 <Link
                   to="/auth"
                   className="flex-1 bg-nexar-accent text-white py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors flex items-center justify-center space-x-2"
@@ -136,30 +115,40 @@ const AuthConfirmPage = () => {
                   <span>Pagina Principală</span>
                 </Link>
               </div>
-            </>
+            </div>
+          ) : (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                Eroare la confirmarea contului
+              </h2>
+              <p className="text-gray-600 mb-6">
+                {error || 'A apărut o eroare la confirmarea contului tău. Te rugăm să încerci din nou sau să contactezi suportul.'}
+              </p>
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                <Link
+                  to="/auth"
+                  className="flex-1 bg-nexar-accent text-white py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors flex items-center justify-center space-x-2"
+                >
+                  <LogIn className="h-5 w-5" />
+                  <span>Încearcă să te conectezi</span>
+                </Link>
+                <Link
+                  to="/"
+                  className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Home className="h-5 w-5" />
+                  <span>Pagina Principală</span>
+                </Link>
+              </div>
+            </div>
           )}
         </div>
       </div>
     </div>
   );
 };
-
-// Adăugăm componenta Plus pentru butonul "Adaugă Anunț"
-const Plus = ({ className }: { className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width="24" 
-    height="24" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M12 5v14M5 12h14" />
-  </svg>
-);
 
 export default AuthConfirmPage;
