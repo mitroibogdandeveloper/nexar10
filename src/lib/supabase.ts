@@ -890,6 +890,20 @@ export const admin = {
     try {
       console.log('🔍 Checking admin status...')
       
+      // Verificăm dacă există un utilizator în localStorage
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user && user.isAdmin) {
+            console.log('✅ User is admin based on localStorage');
+            return true;
+          }
+        } catch (e) {
+          console.error('Error parsing user from localStorage:', e);
+        }
+      }
+      
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {

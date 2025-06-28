@@ -22,26 +22,10 @@ const AdminPage = () => {
   const [sortDirection, setSortDirection] = useState('desc');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isProcessing, setIsProcessing] = useState<{[key: string]: boolean}>({});
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set a timeout to show an error message if loading takes too long
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('Loading timeout reached in AdminPage');
-        setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
-        setIsLoading(false);
-      }
-    }, 15000); // 15 seconds timeout
-    
-    setLoadingTimeout(timeout);
-    
     checkAdminStatus();
-    
-    return () => {
-      if (loadingTimeout) clearTimeout(loadingTimeout);
-    };
   }, []);
 
   const checkAdminStatus = async () => {
@@ -71,10 +55,6 @@ const AdminPage = () => {
       navigate('/');
     } finally {
       setIsLoading(false);
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        setLoadingTimeout(null);
-      }
     }
   };
 
@@ -107,10 +87,6 @@ const AdminPage = () => {
       setError('A apărut o eroare la încărcarea anunțurilor');
     } finally {
       setIsLoading(false);
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        setLoadingTimeout(null);
-      }
     }
   };
 
@@ -133,10 +109,6 @@ const AdminPage = () => {
       setError('A apărut o eroare la încărcarea utilizatorilor');
     } finally {
       setIsLoading(false);
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        setLoadingTimeout(null);
-      }
     }
   };
 
@@ -339,12 +311,15 @@ const AdminPage = () => {
           <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Acces Interzis</h2>
           <p className="text-gray-600 mb-6">Nu ai permisiunea de a accesa această pagină. Doar administratorii pot vedea panoul de administrare.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-          >
-            Înapoi la pagina principală
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => navigate('/')}
+              className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+            >
+              Înapoi la pagina principală
+            </button>
+            <FixSupabaseButton buttonText="Repară Conexiunea" />
+          </div>
         </div>
       </div>
     );

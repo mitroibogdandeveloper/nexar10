@@ -4,6 +4,7 @@ import {
   User, Plus, Menu, X, Bell, LogOut
 } from 'lucide-react';
 import { auth, checkSupabaseConnection, supabase, admin } from '../lib/supabase';
+import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -97,6 +98,7 @@ const Header = () => {
               setUser({ 
                 id: currentUser.id, 
                 email: currentUser.email,
+                isAdmin: currentUser.email === 'admin@nexar.ro',
                 isLoggedIn: true 
               });
             }
@@ -105,6 +107,7 @@ const Header = () => {
             setUser({ 
               id: currentUser.id, 
               email: currentUser.email,
+              isAdmin: currentUser.email === 'admin@nexar.ro',
               isLoggedIn: true 
             });
           }
@@ -191,6 +194,7 @@ const Header = () => {
               setUser({ 
                 id: session.user.id, 
                 email: session.user.email,
+                isAdmin: session.user.email === 'admin@nexar.ro',
                 isLoggedIn: true 
               });
             }
@@ -199,6 +203,7 @@ const Header = () => {
             setUser({ 
               id: session.user.id, 
               email: session.user.email,
+              isAdmin: session.user.email === 'admin@nexar.ro',
               isLoggedIn: true 
             });
           }
@@ -326,6 +331,13 @@ const Header = () => {
             </div>
           </Link>
 
+          {/* Connection Status Indicator - Only show if disconnected */}
+          {isConnected === false && (
+            <div className="hidden lg:flex items-center space-x-4">
+              <FixSupabaseButton buttonText="Repară Conexiunea" className="bg-red-100 text-red-800 hover:bg-red-200" />
+            </div>
+          )}
+
           {/* Navigation - Desktop */}
           <nav className="hidden lg:flex items-center space-x-1">
             <Link
@@ -416,6 +428,16 @@ const Header = () => {
         {isMenuOpen && (
           <div className="lg:hidden py-4 border-t border-gray-200 animate-slide-up bg-white/95 backdrop-blur-md">
             <div className="space-y-2">
+              {/* Connection Status on Mobile - Only show if disconnected */}
+              {isConnected === false && (
+                <div className="flex flex-col space-y-2 px-4 py-2 rounded-lg text-xs font-medium bg-red-100 text-red-800 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span>Probleme cu conexiunea</span>
+                    <FixSupabaseButton buttonText="Repară" className="bg-red-200 text-red-800 hover:bg-red-300" />
+                  </div>
+                </div>
+              )}
+              
               <Link
                 to="/anunturi"
                 className="block px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors"
