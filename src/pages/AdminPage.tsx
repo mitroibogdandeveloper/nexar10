@@ -6,7 +6,8 @@ import {
   User, Building, Calendar, MapPin, ArrowUpDown, Check, X,
   RefreshCw, Shield
 } from 'lucide-react';
-import { admin, supabase } from '../lib/supabase';
+import { admin, supabase, romanianCities } from '../lib/supabase';
+import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('listings');
@@ -70,6 +71,10 @@ const AdminPage = () => {
       navigate('/');
     } finally {
       setIsLoading(false);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     }
   };
 
@@ -429,7 +434,7 @@ const AdminPage = () => {
                     <p className="text-red-700">{error}</p>
                   </div>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex gap-4">
                   <button
                     onClick={() => activeTab === 'listings' ? loadListings() : loadUsers()}
                     className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition-colors flex items-center space-x-2"
@@ -437,6 +442,7 @@ const AdminPage = () => {
                     <RefreshCw className="h-4 w-4" />
                     <span>Încearcă din nou</span>
                   </button>
+                  <FixSupabaseButton buttonText="Repară Conexiunea" />
                 </div>
               </div>
             )}

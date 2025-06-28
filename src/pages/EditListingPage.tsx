@@ -471,6 +471,7 @@ const EditListingPage = () => {
             >
               Reîncarcă pagina
             </button>
+            <FixSupabaseButton buttonText="Repară Conexiunea" />
           </div>
         </div>
       </div>

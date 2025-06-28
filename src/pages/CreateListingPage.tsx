@@ -773,48 +773,46 @@ const CreateListingPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Locația *
                   </label>
-                  <div className="relative">
-                    <select
-                      value={formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
-                        errors.location ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                    >
-                      <option value="">Selectează orașul</option>
-                      <option value="București S1">București S1</option>
-                      <option value="București S2">București S2</option>
-                      <option value="București S3">București S3</option>
-                      <option value="București S4">București S4</option>
-                      <option value="București S5">București S5</option>
-                      <option value="București S6">București S6</option>
-                      <option value="Cluj-Napoca">Cluj-Napoca</option>
-                      <option value="Timișoara">Timișoara</option>
-                      <option value="Iași">Iași</option>
-                      <option value="Constanța">Constanța</option>
-                      <option value="Brașov">Brașov</option>
-                      <option value="Craiova">Craiova</option>
-                      <option value="Galați">Galați</option>
-                      <option value="Oradea">Oradea</option>
-                      <option value="Ploiești">Ploiești</option>
-                      <option value="Sibiu">Sibiu</option>
-                      <option value="Bacău">Bacău</option>
-                      <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-                      {romanianCities.map(city => (
-                        !city.startsWith("București") && 
-                        city !== "Râmnicu Vâlcea" && 
-                        city !== "Rm. Vâlcea" && (
-                          <option key={city} value={city}>{city}</option>
-                        )
-                      ))}
-                    </select>
-                    {errors.location && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-1" />
-                        {errors.location}
-                      </p>
-                    )}
-                  </div>
+                  <select
+                    value={formData.location}
+                    onChange={(e) => handleInputChange('location', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-gray-900 focus:border-transparent ${
+                      errors.location ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Selectează orașul</option>
+                    <option value="București S1">București S1</option>
+                    <option value="București S2">București S2</option>
+                    <option value="București S3">București S3</option>
+                    <option value="București S4">București S4</option>
+                    <option value="București S5">București S5</option>
+                    <option value="București S6">București S6</option>
+                    <option value="Cluj-Napoca">Cluj-Napoca</option>
+                    <option value="Timișoara">Timișoara</option>
+                    <option value="Iași">Iași</option>
+                    <option value="Constanța">Constanța</option>
+                    <option value="Brașov">Brașov</option>
+                    <option value="Craiova">Craiova</option>
+                    <option value="Galați">Galați</option>
+                    <option value="Oradea">Oradea</option>
+                    <option value="Ploiești">Ploiești</option>
+                    <option value="Sibiu">Sibiu</option>
+                    <option value="Bacău">Bacău</option>
+                    <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+                    {romanianCities.map(city => (
+                      !city.startsWith("București") && 
+                      city !== "Râmnicu Vâlcea" && 
+                      city !== "Rm. Vâlcea" && (
+                        <option key={city} value={city}>{city}</option>
+                      )
+                    ))}
+                  </select>
+                  {errors.location && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.location}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

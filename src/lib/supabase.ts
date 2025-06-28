@@ -683,14 +683,13 @@ export const listings = {
         .update(updateData)
         .eq('id', id)
         .select()
-        .single()
       
       if (error) {
         console.error('❌ Error updating listing:', error)
         throw new Error(`Eroare la actualizarea anunțului: ${error.message}`)
       }
       
-      console.log('✅ Listing updated successfully:', data.id)
+      console.log('✅ Listing updated successfully:', id)
       return { data, error: null }
       
     } catch (err: any) {
