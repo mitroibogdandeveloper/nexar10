@@ -344,7 +344,12 @@ const EditListingPage = () => {
     
     if (!formData.title.trim()) newErrors.title = 'Titlul este obligatoriu';
     if (!formData.price) newErrors.price = 'Prețul este obligatoriu';
-    if (!formData.description.trim()) newErrors.description = 'Descrierea este obligatorie';
+    
+    // Descrierea nu mai este obligatorie
+    if (formData.description.length > 2000) {
+      newErrors.description = 'Descrierea nu poate depăși 2000 de caractere';
+    }
+    
     if (!formData.category) newErrors.category = 'Categoria este obligatorie';
     if (!formData.brand) newErrors.brand = 'Marca este obligatorie';
     if (!formData.model.trim()) newErrors.model = 'Modelul este obligatoriu';
@@ -407,7 +412,7 @@ const EditListingPage = () => {
       const updateData = {
         title: formData.title.trim(),
         price: parseFloat(formData.price),
-        description: formData.description.trim(),
+        description: formData.description.trim() || '', // Descriere poate fi goală
         mileage: parseInt(formData.mileage),
         year: parseInt(formData.year),
         location: formData.location.trim(),
@@ -898,7 +903,7 @@ const EditListingPage = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descriere detaliată *
+                  Descriere detaliată
                 </label>
                 <textarea
                   value={formData.description}
@@ -917,12 +922,11 @@ const EditListingPage = () => {
                     </p>
                   ) : (
                     <p className="text-sm text-gray-500">
-                      Minim 50 caractere, maxim 2000 caractere
+                      Maxim 2000 caractere
                     </p>
                   )}
                   <span className={`text-sm ${
-                    formData.description.length > 2000 ? 'text-red-600' : 
-                    formData.description.length < 50 ? 'text-orange-600' : 'text-green-600'
+                    formData.description.length > 2000 ? 'text-red-600' : 'text-green-600'
                   }`}>
                     {formData.description.length}/2000
                   </span>

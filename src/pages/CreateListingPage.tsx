@@ -240,11 +240,8 @@ const CreateListingPage = () => {
           }
         }
         
-        if (!formData.description.trim()) {
-          newErrors.description = 'Descrierea este obligatorie';
-        } else if (formData.description.length < 50) {
-          newErrors.description = 'Descrierea trebuie să aibă cel puțin 50 de caractere';
-        } else if (formData.description.length > 2000) {
+        // Descrierea nu mai este obligatorie
+        if (formData.description.trim().length > 0 && formData.description.length > 2000) {
           newErrors.description = 'Descrierea nu poate depăși 2000 de caractere';
         }
         break;
@@ -355,7 +352,7 @@ const CreateListingPage = () => {
       // Pregătim datele pentru anunț cu maparea corectă
       const listingData = {
         title: formData.title.trim(),
-        description: formData.description.trim(),
+        description: formData.description.trim() || '', // Descriere poate fi goală
         price: parseFloat(formData.price),
         year: parseInt(formData.year),
         mileage: parseInt(formData.mileage),
@@ -916,7 +913,7 @@ const CreateListingPage = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descriere detaliată *
+                  Descriere detaliată
                 </label>
                 <textarea
                   value={formData.description}
@@ -935,12 +932,11 @@ const CreateListingPage = () => {
                     </p>
                   ) : (
                     <p className="text-sm text-gray-500">
-                      Minim 50 caractere, maxim 2000 caractere
+                      Maxim 2000 caractere
                     </p>
                   )}
                   <span className={`text-sm ${
-                    formData.description.length > 2000 ? 'text-red-600' : 
-                    formData.description.length < 50 ? 'text-orange-600' : 'text-green-600'
+                    formData.description.length > 2000 ? 'text-red-600' : 'text-green-600'
                   }`}>
                     {formData.description.length}/2000
                   </span>
