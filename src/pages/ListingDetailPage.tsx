@@ -404,7 +404,7 @@ const ListingDetailPage = () => {
 									</div>
 								)}
 
-								<div className="">
+								<div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex space-x-2">
 									<button
 										onClick={toggleFavorite}
 										disabled={isTogglingFavorite}
@@ -633,7 +633,7 @@ const ListingDetailPage = () => {
 									{listing.description
 										.split("\n")
 										.map((paragraph: string, index: number) => (
-											<p key={index} className="mb-3 sm:mb-4">
+											<p key={index} className="mb-3 sm:mb-4 whitespace-pre-wrap">
 												{paragraph}
 											</p>
 										))}

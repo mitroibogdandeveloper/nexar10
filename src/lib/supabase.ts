@@ -50,7 +50,7 @@ export interface User {
   created_at: string
 }
 
-// Lista orașelor din România
+// Lista orașelor din România - actualizată cu sectoarele Bucureștiului și Rm. Vâlcea
 export const romanianCities = [
   'Abrud', 'Adjud', 'Agnita', 'Aiud', 'Alba Iulia', 'Aleșd', 'Alexandria', 'Amara', 'Anina', 'Arad', 'Ardud', 'Avrig', 'Azuga',
   'Bacău', 'Baia de Aramă', 'Baia de Arieș', 'Baia Mare', 'Baia Sprie', 'Băicoi', 'Băile Govora', 'Băile Herculane', 'Băile Olănești',
@@ -68,7 +68,7 @@ export const romanianCities = [
   'Motru', 'Murfatlar', 'Murgeni', 'Nădlac', 'Năsăud', 'Năvodari', 'Negrești', 'Negrești-Oaș', 'Nehoiu', 'Nucet', 'Ocna Mureș',
   'Ocna Sibiului', 'Odobești', 'Odorheiu Secuiesc', 'Oltenița', 'Onești', 'Oradea', 'Orăștie', 'Oravița', 'Orșova', 'Otopeni',
   'Pașcani', 'Pătârlagele', 'Pâncota', 'Pitești', 'Piatra Neamț', 'Piatra-Olt', 'Ploiești', 'Plopeni', 'Podu Iloaiei',
-  'Popești-Leordeni', 'Predeal', 'Pucioasa', 'Răcari', 'Rădăuți', 'Râmnicu Sărat', 'Râmnicu Vâlcea', 'Rășinari', 'Recaș',
+  'Popești-Leordeni', 'Predeal', 'Pucioasa', 'Răcari', 'Rădăuți', 'Râmnicu Sărat', 'Râmnicu Vâlcea', 'Rm. Vâlcea', 'Rășinari', 'Recaș',
   'Reghin', 'Remetea', 'Reșița', 'Roman', 'Roșiorii de Vede', 'Rovinari', 'Rupea', 'Săcele', 'Săcueni', 'Salonta',
   'Sângeorgiu de Pădure', 'Sânnicolau Mare', 'Sărmașu', 'Satu Mare', 'Săveni', 'Scornicești', 'Sebeș', 'Sebiș', 'Segarcea',
   'Sfântu Gheorghe', 'Sibiu', 'Sighetu Marmației', 'Sighișoara', 'Simeria', 'Șimleu Silvaniei', 'Sinaia', 'Slănic',
@@ -78,7 +78,7 @@ export const romanianCities = [
   'Toplița', 'Tulcea', 'Turda', 'Turnu Măgurele', 'Turnu Roșu', 'Țăndărei', 'Țicleni', 'Țintea', 'Țureni', 'Uricani',
   'Urlați', 'Urziceni', 'Valea lui Mihai', 'Vălenii de Munte', 'Vaslui', 'Vatra Dornei', 'Vicovu de Sus', 'Victoria',
   'Videle', 'Viișoara', 'Vulcan', 'Vânju Mare', 'Zalău', 'Zărnești', 'Zimnicea', 'Zlatna',
-  'Sector 1', 'Sector 2', 'Sector 3', 'Sector 4', 'Sector 5', 'Sector 6',
+  'București S1', 'București S2', 'București S3', 'București S4', 'București S5', 'București S6',
   'Bragadiru', 'Buftea', 'Chitila', 'Corbeanca', 'Domnești', 'Măgurele', 'Mogoșoaia',
   'Cernica', 'Glina', 'Jilava', 'Peris', 'Snagov', 'Stefanestii de Jos', 'Tunari',
   'Florești', 'Apahida', 'Baciu', 'Feleacu', 'Gilău', 'Jucu', 'Kolozsvar',
