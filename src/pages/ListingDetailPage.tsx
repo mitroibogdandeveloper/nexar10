@@ -23,8 +23,10 @@ import {
 	ExternalLink,
 	Building,
 	AlertTriangle,
+	RefreshCw,
 } from "lucide-react";
 import { listings, supabase } from "../lib/supabase";
+import FixSupabaseButton from "../components/FixSupabaseButton";
 
 const ListingDetailPage = () => {
 	const { id } = useParams();
@@ -347,12 +349,15 @@ const ListingDetailPage = () => {
 					<p className="text-gray-600 mb-6">
 						{error || "Anunțul căutat nu există sau a fost șters."}
 					</p>
-					<Link
-						to="/anunturi"
-						className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-					>
-						Vezi toate anunțurile
-					</Link>
+					<div className="flex flex-col sm:flex-row gap-4">
+						<Link
+							to="/anunturi"
+							className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+						>
+							Vezi toate anunțurile
+						</Link>
+						<FixSupabaseButton buttonText="Repară Conexiunea" />
+					</div>
 				</div>
 			</div>
 		);
@@ -718,6 +723,15 @@ const ListingDetailPage = () => {
 									<span>Vezi pe Hartă</span>
 								</button>
 							</div>
+						</div>
+						
+						{/* Fix Connection Button */}
+						<div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+							<h3 className="text-lg font-semibold text-gray-900 mb-4">Probleme cu încărcarea?</h3>
+							<p className="text-gray-600 mb-4 text-sm">
+								Dacă întâmpini probleme cu încărcarea anunțurilor sau a imaginilor, încearcă să repari conexiunea.
+							</p>
+							<FixSupabaseButton buttonText="Repară Conexiunea" />
 						</div>
 					</div>
 				</div>

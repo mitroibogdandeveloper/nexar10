@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { X, Plus, Check, AlertTriangle, Camera, ArrowLeft, ChevronDown, Trash2 } from 'lucide-react';
 import { listings, isAuthenticated, supabase, romanianCities, admin } from '../lib/supabase';
 import SuccessModal from '../components/SuccessModal';
+import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const EditListingPage = () => {
   const { id } = useParams();
@@ -448,6 +449,31 @@ const EditListingPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-nexar-accent border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (errors.general) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
+          <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Eroare la încărcare
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {errors.general}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+            >
+              Reîncarcă pagina
+            </button>
+            <FixSupabaseButton buttonText="Repară Conexiunea" />
+          </div>
+        </div>
       </div>
     );
   }

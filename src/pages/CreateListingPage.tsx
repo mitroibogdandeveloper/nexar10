@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Plus, Check, AlertTriangle, Camera } from 'lucide-react';
 import { listings, isAuthenticated, supabase, romanianCities } from '../lib/supabase';
 import SuccessModal from '../components/SuccessModal';
+import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const CreateListingPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -437,12 +438,15 @@ const CreateListingPage = () => {
           <p className="text-gray-600 mb-6">
             {errors.profile || 'Pentru a adăuga un anunț, trebuie să îți completezi profilul mai întâi.'}
           </p>
-          <button 
-            onClick={() => navigate('/profil')}
-            className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-          >
-            Completează Profilul
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button 
+              onClick={() => navigate('/profil')}
+              className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+            >
+              Completează Profilul
+            </button>
+            <FixSupabaseButton buttonText="Repară Conexiunea" />
+          </div>
         </div>
       </div>
     );
@@ -926,7 +930,7 @@ const CreateListingPage = () => {
                 />
                 <div className="flex justify-between items-center mt-1">
                   {errors.description ? (
-                    <p className="text-sm text-red-600 flex items-center">
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
                       <AlertTriangle className="h-4 w-4 mr-1" />
                       {errors.description}
                     </p>

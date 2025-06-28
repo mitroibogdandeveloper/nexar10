@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Filter, Star, MapPin, Calendar, Gauge, ChevronLeft, ChevronRight, Settings, Fuel, User, X, SlidersHorizontal, Building } from 'lucide-react';
+import { Search, Filter, Star, MapPin, Calendar, Gauge, ChevronLeft, ChevronRight, Settings, Fuel, User, X, SlidersHorizontal, Building, RefreshCw } from 'lucide-react';
 import { listings, supabase, romanianCities } from '../lib/supabase';
+import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const ListingsPage = () => {
   // On desktop, show filters by default. On mobile, hide them by default
@@ -454,26 +455,14 @@ const ListingsPage = () => {
                       <option value="">Toate mărcile</option>
                       <option value="Yamaha">Yamaha</option>
                       <option value="Honda">Honda</option>
-                      <option value="Suzuki">Suzuki</option>
-                      <option value="Kawasaki">Kawasaki</option>
                       <option value="BMW">BMW</option>
                       <option value="Ducati">Ducati</option>
                       <option value="KTM">KTM</option>
-                      <option value="Aprilia">Aprilia</option>
-                      <option value="Triumph">Triumph</option>
+                      <option value="Suzuki">Suzuki</option>
                       <option value="Harley-Davidson">Harley-Davidson</option>
-                      <option value="MV Agusta">MV Agusta</option>
-                      <option value="Benelli">Benelli</option>
-                      <option value="Moto Guzzi">Moto Guzzi</option>
-                      <option value="Indian">Indian</option>
-                      <option value="Zero">Zero</option>
-                      <option value="Husqvarna">Husqvarna</option>
-                      <option value="Royal Enfield">Royal Enfield</option>
-                      <option value="Bimota">Bimota</option>
-                      <option value="Buell">Buell</option>
-                      <option value="CF Moto">CF Moto</option>
-                      <option value="Hyosung">Hyosung</option>
-                      <option value="Kymco">Kymco</option>
+                      <option value="Kawasaki">Kawasaki</option>
+                      <option value="Triumph">Triumph</option>
+                      <option value="Aprilia">Aprilia</option>
                     </select>
                   </div>
 
@@ -688,12 +677,16 @@ const ListingsPage = () => {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Eroare la încărcare</h3>
                 <p className="text-gray-600 mb-6">{error}</p>
-                <button
-                  onClick={loadListings}
-                  className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-                >
-                  Încearcă din nou
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={loadListings}
+                    className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <RefreshCw className="h-5 w-5" />
+                    <span>Încearcă din nou</span>
+                  </button>
+                  <FixSupabaseButton buttonText="Repară Conexiunea" />
+                </div>
               </div>
             )}
 

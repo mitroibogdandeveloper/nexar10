@@ -21,6 +21,7 @@ import {
 	ChevronRight,
 } from "lucide-react";
 import { listings, romanianCities } from "../lib/supabase";
+import FixSupabaseButton from "../components/FixSupabaseButton";
 
 const HomePage = () => {
 	const [searchParams] = useSearchParams();
@@ -943,7 +944,7 @@ const HomePage = () => {
 							)}
 
 							{/* Error State */}
-							{error && (
+							{error && !isLoading && (
 								<div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
 									<div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
 										<X className="h-8 w-8 text-red-500" />
@@ -952,12 +953,15 @@ const HomePage = () => {
 										Eroare la încărcare
 									</h3>
 									<p className="text-gray-600 mb-6">{error}</p>
-									<button
-										onClick={loadListings}
-										className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-									>
-										Încearcă din nou
-									</button>
+									<div className="flex flex-col sm:flex-row gap-4 justify-center">
+										<button
+											onClick={loadListings}
+											className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+										>
+											Încearcă din nou
+										</button>
+										<FixSupabaseButton buttonText="Repară Conexiunea" />
+									</div>
 								</div>
 							)}
 
@@ -1013,7 +1017,7 @@ const HomePage = () => {
 						)}
 
 						{/* Error State */}
-						{error && (
+						{error && !isLoading && (
 							<div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
 								<div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
 									<X className="h-6 w-6 text-red-500" />
@@ -1022,12 +1026,15 @@ const HomePage = () => {
 									Eroare la încărcare
 								</h3>
 								<p className="text-gray-600 mb-6 text-sm">{error}</p>
-								<button
-									onClick={loadListings}
-									className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-								>
-									Încearcă din nou
-								</button>
+								<div className="flex flex-col gap-3">
+									<button
+										onClick={loadListings}
+										className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+									>
+										Încearcă din nou
+									</button>
+									<FixSupabaseButton buttonText="Repară Conexiunea" />
+								</div>
 							</div>
 						)}
 
