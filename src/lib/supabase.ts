@@ -570,15 +570,14 @@ export const listings = {
         .from('listings')
         .select('images, seller_id, seller_name')
         .eq('id', id)
-        .single()
       
-      if (fetchError || !currentListing) {
+      if (fetchError || !currentListing || currentListing.length === 0) {
         console.error('❌ Error fetching current listing:', fetchError)
         throw new Error(`Eroare la obținerea anunțului: ${fetchError?.message || 'Anunțul nu a fost găsit'}`)
       }
       
       // 2. Gestionăm imaginile
-      let updatedImages = [...(currentListing.images || [])]
+      let updatedImages = [...(currentListing[0].images || [])]
       
       // 2.1 Ștergem imaginile marcate pentru eliminare
       if (imagesToRemove && imagesToRemove.length > 0) {
@@ -615,7 +614,7 @@ export const listings = {
         for (const image of newImages) {
           const fileExt = image.name.split('.').pop()
           const fileName = `${uuidv4()}.${fileExt}`
-          const filePath = `${currentListing.seller_id}/${fileName}`
+          const filePath = `${currentListing[0].seller_id}/${fileName}`
           
           console.log(`📤 Uploading image: ${fileName}`)
           
@@ -664,10 +663,10 @@ export const listings = {
             const { data: profile } = await supabase
               .from('profiles')
               .select('name')
-              .eq('id', currentListing.seller_id)
+              .eq('id', currentListing[0].seller_id)
               .single()
             
-            if (profile && profile.name !== currentListing.seller_name) {
+            if (profile && profile.name !== currentListing[0].seller_name) {
               updateData.seller_name = profile.name
               console.log('✅ Updated seller name to:', profile.name)
             }
@@ -682,7 +681,6 @@ export const listings = {
         .from('listings')
         .update(updateData)
         .eq('id', id)
-        .select()
       
       if (error) {
         console.error('❌ Error updating listing:', error)
@@ -994,6 +992,36 @@ export const admin = {
     try {
       console.log('🗑️ Deleting listing:', listingId)
       
+      // Obținem anunțul pentru a șterge imaginile
+      const { data: listing } = await supabase
+        .from('listings')
+        .select('images')
+        .eq('id', listingId)
+        .single()
+      
+      // Ștergem imaginile din storage
+      if (listing && listing.images) {
+        for (const imageUrl of listing.images) {
+          try {
+            // Extragem path-ul din URL
+            const urlParts = imageUrl.split('/')
+            const fileName = urlParts[urlParts.length - 1]
+            const sellerFolder = urlParts[urlParts.length - 2]
+            const filePath = `${sellerFolder}/${fileName}`
+            
+            await supabase.storage
+              .from('listing-images')
+              .remove([filePath])
+              
+            console.log(`✅ Removed image from storage: ${filePath}`)
+          } catch (error) {
+            console.error('Error removing image:', error)
+            // Continuăm cu ștergerea anunțului chiar dacă ștergerea imaginilor eșuează
+          }
+        }
+      }
+      
+      // Ștergem anunțul
       const { error } = await supabase
         .from('listings')
         .delete()
