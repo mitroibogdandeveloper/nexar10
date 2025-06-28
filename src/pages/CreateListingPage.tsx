@@ -104,6 +104,10 @@ const CreateListingPage = () => {
       navigate('/auth');
     } finally {
       setIsLoadingProfile(false);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     }
   };
 

@@ -187,8 +187,8 @@ const ListingDetailPage = () => {
 			console.log("✅ Favorite check result:", isFav);
 
 			setIsFavorite(isFav);
-		} catch (error) {
-			console.error("Error in checkIfFavorite:", error);
+		} catch (err) {
+			console.error("Error in checkIfFavorite:", err);
 		}
 	};
 

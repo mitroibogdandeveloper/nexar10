@@ -148,6 +148,9 @@ export const fixAllSupabaseIssues = async (): Promise<{success: boolean, message
       };
     }
     
+    // Pasul 3: Repară storage buckets
+    await fixStorageBuckets();
+    
     // Totul a funcționat
     return { 
       success: true, 
@@ -157,5 +160,138 @@ export const fixAllSupabaseIssues = async (): Promise<{success: boolean, message
   } catch (err) {
     console.error('💥 Eroare la repararea completă:', err);
     return { success: false, error: err };
+  }
+};
+
+/**
+ * Funcție pentru a repara bucket-urile de storage
+ */
+const fixStorageBuckets = async (): Promise<void> => {
+  try {
+    console.log('🔧 Verificare și reparare bucket-uri storage...');
+    
+    // Verificăm dacă bucket-urile există
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    
+    if (bucketsError) {
+      console.error('❌ Eroare la listarea bucket-urilor:', bucketsError);
+      return;
+    }
+    
+    const bucketNames = buckets?.map(b => b.name) || [];
+    
+    // Verificăm și creăm bucket-ul pentru imagini anunțuri dacă nu există
+    if (!bucketNames.includes('listing-images')) {
+      console.log('🔧 Creăm bucket-ul listing-images...');
+      
+      try {
+        const { error } = await supabase.storage.createBucket('listing-images', {
+          public: true,
+          fileSizeLimit: 5242880, // 5MB
+          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+        });
+        
+        if (error) {
+          console.error('❌ Eroare la crearea bucket-ului listing-images:', error);
+        } else {
+          console.log('✅ Bucket-ul listing-images a fost creat cu succes!');
+        }
+      } catch (err) {
+        console.error('❌ Eroare la crearea bucket-ului listing-images:', err);
+      }
+    }
+    
+    // Verificăm și creăm bucket-ul pentru imagini profil dacă nu există
+    if (!bucketNames.includes('profile-images')) {
+      console.log('🔧 Creăm bucket-ul profile-images...');
+      
+      try {
+        const { error } = await supabase.storage.createBucket('profile-images', {
+          public: true,
+          fileSizeLimit: 2097152, // 2MB
+          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+        });
+        
+        if (error) {
+          console.error('❌ Eroare la crearea bucket-ului profile-images:', error);
+        } else {
+          console.log('✅ Bucket-ul profile-images a fost creat cu succes!');
+        }
+      } catch (err) {
+        console.error('❌ Eroare la crearea bucket-ului profile-images:', err);
+      }
+    }
+    
+    // Configurăm politicile pentru bucket-uri
+    await configureStoragePolicies();
+    
+  } catch (err) {
+    console.error('💥 Eroare la repararea bucket-urilor:', err);
+  }
+};
+
+/**
+ * Funcție pentru a configura politicile de storage
+ */
+const configureStoragePolicies = async (): Promise<void> => {
+  try {
+    console.log('🔧 Configurare politici storage...');
+    
+    // Acest script va fi rulat doar dacă utilizatorul are permisiuni de admin
+    // Altfel, va eșua silențios
+    const { error } = await supabase.rpc('configure_storage_policies');
+    
+    if (error) {
+      console.error('❌ Eroare la configurarea politicilor storage:', error);
+      console.log('ℹ️ Contactează administratorul pentru a configura politicile storage');
+    } else {
+      console.log('✅ Politicile storage au fost configurate cu succes!');
+    }
+  } catch (err) {
+    console.error('💥 Eroare la configurarea politicilor storage:', err);
+  }
+};
+
+/**
+ * Funcție pentru a curăța cache-ul browser-ului pentru domenii
+ */
+export const clearBrowserCache = (): void => {
+  try {
+    console.log('🧹 Curățare cache browser...');
+    
+    // Curățăm localStorage pentru a forța reautentificarea
+    localStorage.removeItem('supabase.auth.token');
+    
+    // Curățăm și alte date din localStorage care ar putea cauza probleme
+    const keysToKeep = ['user']; // Păstrăm doar datele utilizatorului
+    
+    Object.keys(localStorage).forEach(key => {
+      if (!keysToKeep.includes(key)) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    console.log('✅ Cache-ul browser-ului a fost curățat cu succes!');
+  } catch (err) {
+    console.error('💥 Eroare la curățarea cache-ului:', err);
+  }
+};
+
+/**
+ * Funcție pentru a repara cookie-urile
+ */
+export const fixCookieIssues = (): void => {
+  try {
+    console.log('🔧 Reparare probleme cu cookie-uri...');
+    
+    // Ștergem toate cookie-urile pentru domeniul curent
+    document.cookie.split(';').forEach(cookie => {
+      const [name] = cookie.trim().split('=');
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    });
+    
+    console.log('✅ Cookie-urile au fost reparate cu succes!');
+  } catch (err) {
+    console.error('💥 Eroare la repararea cookie-urilor:', err);
   }
 };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
-import { fixAllSupabaseIssues } from '../lib/fixSupabase';
+import { fixAllSupabaseIssues, clearBrowserCache, fixCookieIssues } from '../lib/fixSupabase';
 
 interface FixSupabaseButtonProps {
   onSuccess?: () => void;
@@ -26,6 +26,11 @@ const FixSupabaseButton: React.FC<FixSupabaseButtonProps> = ({
     setResult({});
     
     try {
+      // Curățăm cache-ul și cookie-urile mai întâi
+      clearBrowserCache();
+      fixCookieIssues();
+      
+      // Apoi reparăm conexiunea Supabase
       const fixResult = await fixAllSupabaseIssues();
       
       setResult({

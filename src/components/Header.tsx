@@ -5,7 +5,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { auth, checkSupabaseConnection, supabase, admin } from '../lib/supabase';
-import { checkAndFixSupabaseConnection } from '../lib/fixSupabase';
+import { checkAndFixSupabaseConnection, fixCookieIssues } from '../lib/fixSupabase';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -224,6 +224,9 @@ const Header = () => {
   const handleFixConnection = async () => {
     setIsFixing(true);
     try {
+      // Reparăm și cookie-urile pentru a rezolva erorile
+      fixCookieIssues();
+      
       const success = await checkAndFixSupabaseConnection();
       
       if (success) {
@@ -495,6 +498,15 @@ const Header = () => {
               >
                 <Plus className="h-4 w-4" />
                 <span>Adaugă Anunț</span>
+              </Link>
+              
+              <Link
+                to="/fix-supabase"
+                className="flex items-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium mx-0"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Database className="h-4 w-4" />
+                <span>Repară Conexiunea</span>
               </Link>
               
               {isLoading ? (
