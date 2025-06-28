@@ -27,6 +27,7 @@ const ListingsPage = () => {
   const [allListings, setAllListings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
@@ -43,7 +44,23 @@ const ListingsPage = () => {
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
+    
+    // Set a timeout to show an error message if loading takes too long
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('Loading timeout reached in ListingsPage');
+        setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
+        setIsLoading(false);
+      }
+    }, 15000); // 15 seconds timeout
+    
+    setLoadingTimeout(timeout);
+    
     loadListings();
+    
+    return () => {
+      if (loadingTimeout) clearTimeout(loadingTimeout);
+    };
   }, []);
 
   // Load real listings from Supabase
@@ -580,7 +597,12 @@ const ListingsPage = () => {
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
                     >
                       <option value="">Toate locațiile</option>
-                      <option value="București">București</option>
+                      <option value="București S1">București S1</option>
+                      <option value="București S2">București S2</option>
+                      <option value="București S3">București S3</option>
+                      <option value="București S4">București S4</option>
+                      <option value="București S5">București S5</option>
+                      <option value="București S6">București S6</option>
                       <option value="Cluj-Napoca">Cluj-Napoca</option>
                       <option value="Timișoara">Timișoara</option>
                       <option value="Iași">Iași</option>
@@ -592,6 +614,8 @@ const ListingsPage = () => {
                       <option value="Ploiești">Ploiești</option>
                       <option value="Sibiu">Sibiu</option>
                       <option value="Bacău">Bacău</option>
+                      <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+                      <option value="Rm. Vâlcea">Rm. Vâlcea</option>
                     </select>
                   </div>
 

@@ -568,7 +568,7 @@ export const listings = {
       // 1. Obținem anunțul curent pentru a păstra imaginile existente
       const { data: currentListing, error: fetchError } = await supabase
         .from('listings')
-        .select('images, seller_id')
+        .select('images, seller_id, seller_name')
         .eq('id', id)
         .single()
       
@@ -656,6 +656,28 @@ export const listings = {
         images: `${updatedImages.length} images`
       })
       
+      // 4. Obținem profilul utilizatorului pentru a actualiza seller_name
+      if (!updates.seller_name) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', currentListing.seller_id)
+              .single()
+            
+            if (profile && profile.name !== currentListing.seller_name) {
+              updateData.seller_name = profile.name
+              console.log('✅ Updated seller name to:', profile.name)
+            }
+          }
+        } catch (profileError) {
+          console.error('⚠️ Error updating seller name:', profileError)
+          // Continuăm procesul chiar dacă actualizarea numelui eșuează
+        }
+      }
+      
       const { data, error } = await supabase
         .from('listings')
         .update(updateData)
@@ -734,11 +756,35 @@ export const profiles = {
   
   update: async (userId: string, updates: Partial<User>) => {
     try {
+      // 1. Actualizăm profilul
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('user_id', userId)
         .select()
+      
+      if (error) {
+        console.error('Error updating profile:', error)
+        return { data, error }
+      }
+      
+      // 2. Dacă numele s-a schimbat, actualizăm și numele vânzătorului în toate anunțurile
+      if (updates.name && data && data.length > 0) {
+        const profile = data[0]
+        
+        // Actualizăm numele vânzătorului în toate anunțurile
+        const { error: updateListingsError } = await supabase
+          .from('listings')
+          .update({ seller_name: profile.name })
+          .eq('seller_id', profile.id)
+        
+        if (updateListingsError) {
+          console.error('Error updating seller name in listings:', updateListingsError)
+          // Nu blocăm procesul dacă actualizarea anunțurilor eșuează
+        } else {
+          console.log('✅ Updated seller name in all listings')
+        }
+      }
       
       return { data, error }
     } catch (err) {
@@ -990,6 +1036,58 @@ export const admin = {
     } catch (err) {
       console.error('Error toggling user status:', err)
       return { data: null, error: err }
+    }
+  },
+  
+  // Șterge un utilizator și toate anunțurile sale
+  deleteUser: async (userId: string) => {
+    try {
+      // 1. Obținem profilul utilizatorului
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single()
+      
+      if (profileError || !profile) {
+        console.error('Error fetching user profile:', profileError)
+        return { error: profileError || new Error('User profile not found') }
+      }
+      
+      // 2. Ștergem toate anunțurile utilizatorului
+      const { error: listingsError } = await supabase
+        .from('listings')
+        .delete()
+        .eq('seller_id', profile.id)
+      
+      if (listingsError) {
+        console.error('Error deleting user listings:', listingsError)
+        return { error: listingsError }
+      }
+      
+      // 3. Ștergem profilul utilizatorului
+      const { error: deleteError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId)
+      
+      if (deleteError) {
+        console.error('Error deleting user profile:', deleteError)
+        return { error: deleteError }
+      }
+      
+      // 4. Ștergem utilizatorul din auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+      
+      if (authError) {
+        console.error('Error deleting auth user:', authError)
+        return { error: authError }
+      }
+      
+      return { error: null }
+    } catch (err) {
+      console.error('Error deleting user:', err)
+      return { error: err }
     }
   }
 }

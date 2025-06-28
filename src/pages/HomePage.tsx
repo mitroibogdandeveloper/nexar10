@@ -40,13 +40,30 @@ const HomePage = () => {
 	const [allListings, setAllListings] = useState<any[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 	const navigate = useNavigate();
 	const itemsPerPage = 6; // Show 6 listings per page
 
 	// Load real listings from Supabase
 	useEffect(() => {
+		// Set a timeout to show an error message if loading takes too long
+		const timeout = setTimeout(() => {
+			if (isLoading) {
+				console.warn('Loading timeout reached in HomePage');
+				setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
+				setIsLoading(false);
+			}
+		}, 15000); // 15 seconds timeout
+		
+		setLoadingTimeout(timeout);
+		
 		loadListings();
+		
+		return () => {
+			if (loadingTimeout) clearTimeout(loadingTimeout);
+		};
 	}, [filters, searchQuery, currentPage]);
+	
 	// Update filters when URL params change
 	useEffect(() => {
 		const categoryFromUrl = searchParams.get("categorie");
@@ -440,7 +457,8 @@ const HomePage = () => {
 								</div>
 							</div>
 
-							<div className="flex items-center space-x-1 bg-gray-50 rounded-lg px-3 py-1 self-start">E
+							<div className="flex items-center space-x-1 bg-gray-50 rounded-lg px-3 py-1 self-start">
+								<Star className="h-4 w-4 text-yellow-400 fill-current" />
 								<span className="text-sm font-semibold">{listing.rating}</span>
 							</div>
 						</div>
@@ -666,7 +684,12 @@ const HomePage = () => {
 											className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
 										>
 											<option value="">Toate locațiile</option>
-											<option value="București">București</option>
+											<option value="București S1">București S1</option>
+											<option value="București S2">București S2</option>
+											<option value="București S3">București S3</option>
+											<option value="București S4">București S4</option>
+											<option value="București S5">București S5</option>
+											<option value="București S6">București S6</option>
 											<option value="Cluj-Napoca">Cluj-Napoca</option>
 											<option value="Timișoara">Timișoara</option>
 											<option value="Iași">Iași</option>
@@ -678,6 +701,8 @@ const HomePage = () => {
 											<option value="Ploiești">Ploiești</option>
 											<option value="Sibiu">Sibiu</option>
 											<option value="Bacău">Bacău</option>
+											<option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+											<option value="Rm. Vâlcea">Rm. Vâlcea</option>
 										</select>
 									</div>
 
@@ -834,7 +859,12 @@ const HomePage = () => {
 											className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
 										>
 											<option value="">Toate locațiile</option>
-											<option value="București">București</option>
+											<option value="București S1">București S1</option>
+											<option value="București S2">București S2</option>
+											<option value="București S3">București S3</option>
+											<option value="București S4">București S4</option>
+											<option value="București S5">București S5</option>
+											<option value="București S6">București S6</option>
 											<option value="Cluj-Napoca">Cluj-Napoca</option>
 											<option value="Timișoara">Timișoara</option>
 											<option value="Iași">Iași</option>
@@ -846,6 +876,8 @@ const HomePage = () => {
 											<option value="Ploiești">Ploiești</option>
 											<option value="Sibiu">Sibiu</option>
 											<option value="Bacău">Bacău</option>
+											<option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+											<option value="Rm. Vâlcea">Rm. Vâlcea</option>
 										</select>
 									</div>
 
