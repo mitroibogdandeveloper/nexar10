@@ -9,7 +9,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true, // Activăm detectarea sesiunii în URL pentru confirmarea emailului
     flowType: 'pkce'
   }
 })
@@ -151,6 +151,7 @@ export const auth = {
         password,
         options: {
           data: userData,
+          emailRedirectTo: `${window.location.origin}/auth/confirm`
         }
       })
       
@@ -326,6 +327,32 @@ export const auth = {
     } catch (err) {
       console.error('💥 Error updating password:', err)
       return { data: null, error: err }
+    }
+  },
+
+  // Verifică dacă un token de confirmare email este valid
+  verifyEmailToken: async (token: string) => {
+    try {
+      console.log('🔍 Verifying email confirmation token')
+      
+      // Supabase gestionează automat token-ul din URL
+      const { data, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('❌ Error verifying email token:', error)
+        return { success: false, error }
+      }
+      
+      if (data?.session) {
+        console.log('✅ Email confirmed successfully')
+        return { success: true, user: data.session.user }
+      } else {
+        console.error('❌ No session found after email confirmation')
+        return { success: false, error: new Error('No session found') }
+      }
+    } catch (err) {
+      console.error('💥 Error in verifyEmailToken:', err)
+      return { success: false, error: err }
     }
   }
 }
@@ -534,60 +561,118 @@ export const listings = {
     }
   },
 
-  update: async (id: string, updates: Partial<Listing>, newImages?: File[]) => {
+  update: async (id: string, updates: Partial<Listing>, newImages?: File[], imagesToRemove?: string[]) => {
     try {
-      // Dacă avem imagini noi, le încărcăm
-      if (newImages && newImages.length > 0) {
-        const imageUrls: string[] = []
+      console.log('🔄 Starting listing update process...')
+      
+      // 1. Obținem anunțul curent pentru a păstra imaginile existente
+      const { data: currentListing, error: fetchError } = await supabase
+        .from('listings')
+        .select('images, seller_id')
+        .eq('id', id)
+        .single()
+      
+      if (fetchError || !currentListing) {
+        console.error('❌ Error fetching current listing:', fetchError)
+        throw new Error(`Eroare la obținerea anunțului: ${fetchError?.message || 'Anunțul nu a fost găsit'}`)
+      }
+      
+      // 2. Gestionăm imaginile
+      let updatedImages = [...(currentListing.images || [])]
+      
+      // 2.1 Ștergem imaginile marcate pentru eliminare
+      if (imagesToRemove && imagesToRemove.length > 0) {
+        console.log(`🗑️ Removing ${imagesToRemove.length} images...`)
         
-        // Obținem anunțul curent pentru a păstra imaginile existente
-        const { data: currentListing } = await supabase
-          .from('listings')
-          .select('images, seller_id')
-          .eq('id', id)
-          .single()
+        // Filtrăm imaginile care trebuie păstrate
+        updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img))
         
-        // Păstrăm imaginile existente
-        if (currentListing && currentListing.images) {
-          imageUrls.push(...currentListing.images)
+        // Încercăm să ștergem și din storage, dar nu blocăm procesul dacă eșuează
+        for (const imageUrl of imagesToRemove) {
+          try {
+            // Extragem path-ul din URL
+            const urlParts = imageUrl.split('/')
+            const fileName = urlParts[urlParts.length - 1]
+            const sellerFolder = urlParts[urlParts.length - 2]
+            const filePath = `${sellerFolder}/${fileName}`
+            
+            await supabase.storage
+              .from('listing-images')
+              .remove([filePath])
+            
+            console.log(`✅ Removed image from storage: ${filePath}`)
+          } catch (removeError) {
+            console.error('⚠️ Error removing image from storage:', removeError)
+            // Continuăm procesul chiar dacă ștergerea din storage eșuează
+          }
         }
+      }
+      
+      // 2.2 Adăugăm imaginile noi
+      if (newImages && newImages.length > 0) {
+        console.log(`📸 Uploading ${newImages.length} new images...`)
         
-        // Adăugăm imaginile noi
         for (const image of newImages) {
           const fileExt = image.name.split('.').pop()
           const fileName = `${uuidv4()}.${fileExt}`
-          const filePath = `${currentListing?.seller_id}/${fileName}`
+          const filePath = `${currentListing.seller_id}/${fileName}`
           
-          const { error: uploadError } = await supabase.storage
+          console.log(`📤 Uploading image: ${fileName}`)
+          
+          const { error: uploadError, data: uploadData } = await supabase.storage
             .from('listing-images')
-            .upload(filePath, image)
+            .upload(filePath, image, {
+              cacheControl: '3600',
+              upsert: false
+            })
           
           if (uploadError) {
-            console.error('Error uploading image:', uploadError)
+            console.error('❌ Error uploading image:', uploadError)
+            // Continuăm cu următoarea imagine în loc să oprim procesul
             continue
           }
+          
+          console.log('✅ Image uploaded:', uploadData.path)
           
           // Obținem URL-ul public pentru imagine
           const { data: { publicUrl } } = supabase.storage
             .from('listing-images')
             .getPublicUrl(filePath)
           
-          imageUrls.push(publicUrl)
+          console.log('🔗 Public URL:', publicUrl)
+          updatedImages.push(publicUrl)
         }
-        
-        // Actualizăm anunțul cu noile imagini
-        updates.images = imageUrls
       }
+      
+      // 3. Actualizăm anunțul cu toate modificările
+      const updateData = {
+        ...updates,
+        images: updatedImages,
+        updated_at: new Date().toISOString()
+      }
+      
+      console.log('📝 Updating listing with data:', {
+        ...updateData,
+        images: `${updatedImages.length} images`
+      })
       
       const { data, error } = await supabase
         .from('listings')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
         .select()
+        .single()
       
-      return { data, error }
-    } catch (err) {
-      console.error('Error updating listing:', err)
+      if (error) {
+        console.error('❌ Error updating listing:', error)
+        throw new Error(`Eroare la actualizarea anunțului: ${error.message}`)
+      }
+      
+      console.log('✅ Listing updated successfully:', data.id)
+      return { data, error: null }
+      
+    } catch (err: any) {
+      console.error('💥 Error in listings.update:', err)
       return { data: null, error: err }
     }
   },

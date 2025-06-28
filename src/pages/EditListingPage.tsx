@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X, Plus, Check, AlertTriangle, Camera, ArrowLeft, ChevronDown } from 'lucide-react';
+import { X, Plus, Check, AlertTriangle, Camera, ArrowLeft, ChevronDown, Trash2 } from 'lucide-react';
 import { listings, isAuthenticated, supabase, romanianCities } from '../lib/supabase';
 import SuccessModal from '../components/SuccessModal';
 
@@ -12,6 +12,11 @@ const EditListingPage = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [originalListing, setOriginalListing] = useState<any>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [images, setImages] = useState<string[]>([]);
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [filteredCities, setFilteredCities] = useState<string[]>([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -21,9 +26,33 @@ const EditListingPage = () => {
     year: '',
     location: '',
     condition: '',
+    category: '',
+    brand: '',
+    model: '',
+    engine_capacity: '',
+    fuel_type: '',
+    transmission: '',
+    color: '',
+    features: [] as string[],
     phone: '',
     email: ''
   });
+
+  const categories = ['Sport', 'Touring', 'Cruiser', 'Adventure', 'Naked', 'Scooter', 'Enduro', 'Chopper'];
+  const brands = [
+    'Yamaha', 'Honda', 'Suzuki', 'Kawasaki', 'BMW', 'Ducati', 'KTM', 'Aprilia', 
+    'Triumph', 'Harley-Davidson', 'MV Agusta', 'Benelli', 'Moto Guzzi', 'Indian',
+    'Zero', 'Energica', 'Husqvarna', 'Beta', 'Sherco', 'GasGas'
+  ];
+  const fuelTypes = ['Benzină', 'Electric', 'Hibrid'];
+  const transmissionTypes = ['Manual', 'Automat', 'Semi-automat'];
+  const conditions = ['Nouă', 'Excelentă', 'Foarte bună', 'Bună', 'Satisfăcătoare'];
+  const availableFeatures = [
+    'ABS', 'Control tracțiune', 'Suspensie reglabilă', 'Frâne Brembo',
+    'Quickshifter', 'Sistem de navigație', 'Încălzire mânere', 'LED complet',
+    'Bluetooth', 'USB', 'Geantă laterală', 'Parbriz reglabil',
+    'Scaun încălzit', 'Tempomat', 'Sistem anti-furt', 'Jante aliaj'
+  ];
 
   useEffect(() => {
     loadListing();
@@ -71,6 +100,14 @@ const EditListingPage = () => {
       }
 
       setOriginalListing(listingData);
+      setImages(listingData.images || []);
+      
+      // Mapăm valorile din baza de date la valorile din formular
+      const mappedCondition = mapDatabaseValueToDisplay('condition', listingData.condition);
+      const mappedFuelType = mapDatabaseValueToDisplay('fuel_type', listingData.fuel_type);
+      const mappedTransmission = mapDatabaseValueToDisplay('transmission', listingData.transmission);
+      const mappedCategory = mapDatabaseValueToDisplay('category', listingData.category);
+      
       setFormData({
         title: listingData.title || '',
         price: listingData.price?.toString() || '',
@@ -78,7 +115,15 @@ const EditListingPage = () => {
         mileage: listingData.mileage?.toString() || '',
         year: listingData.year?.toString() || '',
         location: listingData.location || '',
-        condition: listingData.condition || '',
+        condition: mappedCondition,
+        category: mappedCategory,
+        brand: listingData.brand || '',
+        model: listingData.model || '',
+        engine_capacity: listingData.engine_capacity?.toString() || '',
+        fuel_type: mappedFuelType,
+        transmission: mappedTransmission,
+        color: listingData.color || '',
+        features: listingData.features || [],
         phone: profile.phone || '',
         email: profile.email || ''
       });
@@ -91,11 +136,179 @@ const EditListingPage = () => {
     }
   };
 
+  // Mapare pentru valorile din baza de date la valorile de afișare
+  const mapDatabaseValueToDisplay = (field: string, value: string): string => {
+    if (!value) return '';
+    
+    switch (field) {
+      case 'category':
+        return value.charAt(0).toUpperCase() + value.slice(1);
+      
+      case 'fuel_type':
+        const fuelMap: Record<string, string> = {
+          'benzina': 'Benzină',
+          'electric': 'Electric',
+          'hibrid': 'Hibrid'
+        };
+        return fuelMap[value] || value;
+      
+      case 'transmission':
+        const transmissionMap: Record<string, string> = {
+          'manuala': 'Manual',
+          'automata': 'Automat',
+          'semi-automata': 'Semi-automat'
+        };
+        return transmissionMap[value] || value;
+      
+      case 'condition':
+        const conditionMap: Record<string, string> = {
+          'noua': 'Nouă',
+          'excelenta': 'Excelentă',
+          'foarte_buna': 'Foarte bună',
+          'buna': 'Bună',
+          'satisfacatoare': 'Satisfăcătoare'
+        };
+        return conditionMap[value] || value;
+      
+      default:
+        return value;
+    }
+  };
+
+  // Mapare pentru valorile din formular la valorile din baza de date
+  const mapValueForDatabase = (field: string, value: string): string => {
+    switch (field) {
+      case 'category':
+        return value.toLowerCase();
+      
+      case 'fuel_type':
+        const fuelMap: Record<string, string> = {
+          'Benzină': 'benzina',
+          'Electric': 'electric',
+          'Hibrid': 'hibrid'
+        };
+        return fuelMap[value] || value.toLowerCase();
+      
+      case 'transmission':
+        const transmissionMap: Record<string, string> = {
+          'Manual': 'manuala',
+          'Automat': 'automata',
+          'Semi-automat': 'semi-automata'
+        };
+        return transmissionMap[value] || value.toLowerCase();
+      
+      case 'condition':
+        const conditionMap: Record<string, string> = {
+          'Nouă': 'noua',
+          'Excelentă': 'excelenta',
+          'Foarte bună': 'foarte_buna',
+          'Bună': 'buna',
+          'Satisfăcătoare': 'satisfacatoare'
+        };
+        return conditionMap[value] || value.toLowerCase();
+      
+      default:
+        return value;
+    }
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+  };
+
+  const handleFeatureToggle = (feature: string) => {
+    setFormData(prev => ({
+      ...prev,
+      features: prev.features.includes(feature)
+        ? prev.features.filter(f => f !== feature)
+        : [...prev.features, feature]
+    }));
+  };
+
+  const handleLocationChange = (value: string) => {
+    handleInputChange('location', value);
+    
+    if (value.length > 0) {
+      const filtered = romanianCities.filter(city =>
+        city.toLowerCase().includes(value.toLowerCase())
+      ).slice(0, 10); // Limităm la 10 rezultate
+      setFilteredCities(filtered);
+      setShowLocationDropdown(true);
+    } else {
+      setFilteredCities([]);
+      setShowLocationDropdown(false);
+    }
+  };
+
+  const selectCity = (city: string) => {
+    handleInputChange('location', city);
+    setShowLocationDropdown(false);
+    setFilteredCities([]);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && (images.length + newImageFiles.length) < 5) {
+      const newFiles = Array.from(files).slice(0, 5 - images.length - newImageFiles.length);
+      
+      // Verificăm fiecare fișier
+      for (const file of newFiles) {
+        // Validare dimensiune (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          setErrors(prev => ({ ...prev, images: 'Fișierul nu poate depăși 5MB' }));
+          return;
+        }
+        
+        // Validare tip fișier
+        if (!file.type.startsWith('image/')) {
+          setErrors(prev => ({ ...prev, images: 'Doar fișiere imagine sunt permise' }));
+          return;
+        }
+      }
+      
+      // Adăugăm fișierele valide
+      setNewImageFiles(prev => [...prev, ...newFiles]);
+      
+      // Generăm URL-uri pentru previzualizare
+      newFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            // Adăugăm la previzualizări, dar nu la imaginile originale
+            const previewUrl = e.target.result as string;
+            setImages(prev => [...prev, previewUrl]);
+            
+            // Clear image errors when successfully adding
+            setErrors(prev => ({ ...prev, images: '' }));
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const imageToRemove = images[index];
+    
+    // Verificăm dacă este o imagine existentă sau una nouă
+    if (originalListing && originalListing.images && originalListing.images.includes(imageToRemove)) {
+      // Este o imagine existentă, o marcăm pentru ștergere
+      setImagesToRemove(prev => [...prev, imageToRemove]);
+    } else {
+      // Este o imagine nouă, o eliminăm din fișierele noi
+      const previewIndex = images.indexOf(imageToRemove);
+      const fileIndex = previewIndex - (originalListing?.images?.length || 0);
+      
+      if (fileIndex >= 0) {
+        setNewImageFiles(prev => prev.filter((_, i) => i !== fileIndex));
+      }
+    }
+    
+    // Eliminăm din previzualizări
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const validateForm = () => {
@@ -104,6 +317,51 @@ const EditListingPage = () => {
     if (!formData.title.trim()) newErrors.title = 'Titlul este obligatoriu';
     if (!formData.price) newErrors.price = 'Prețul este obligatoriu';
     if (!formData.description.trim()) newErrors.description = 'Descrierea este obligatorie';
+    if (!formData.category) newErrors.category = 'Categoria este obligatorie';
+    if (!formData.brand) newErrors.brand = 'Marca este obligatorie';
+    if (!formData.model.trim()) newErrors.model = 'Modelul este obligatoriu';
+    
+    if (!formData.year) {
+      newErrors.year = 'Anul este obligatoriu';
+    } else {
+      const year = parseInt(formData.year);
+      const currentYear = new Date().getFullYear();
+      if (year < 1990 || year > currentYear + 1) {
+        newErrors.year = `Anul trebuie să fie între 1990 și ${currentYear + 1}`;
+      }
+    }
+    
+    if (!formData.mileage) {
+      newErrors.mileage = 'Kilometrajul este obligatoriu';
+    } else {
+      const mileage = parseInt(formData.mileage);
+      if (mileage < 0 || mileage > 500000) {
+        newErrors.mileage = 'Kilometrajul trebuie să fie între 0 și 500,000 km';
+      }
+    }
+    
+    if (!formData.engine_capacity) {
+      newErrors.engine_capacity = 'Capacitatea motorului este obligatorie';
+    } else {
+      const engine = parseInt(formData.engine_capacity);
+      if (engine < 50 || engine > 3000) {
+        newErrors.engine_capacity = 'Capacitatea motorului trebuie să fie între 50 și 3000 cc';
+      }
+    }
+    
+    if (!formData.fuel_type) newErrors.fuel_type = 'Tipul de combustibil este obligatoriu';
+    if (!formData.transmission) newErrors.transmission = 'Transmisia este obligatorie';
+    if (!formData.color.trim()) newErrors.color = 'Culoarea este obligatorie';
+    if (!formData.condition) newErrors.condition = 'Starea este obligatorie';
+    if (!formData.location.trim()) {
+      newErrors.location = 'Locația este obligatorie';
+    } else if (!romanianCities.includes(formData.location.trim())) {
+      newErrors.location = 'Te rugăm să selectezi un oraș din lista disponibilă';
+    }
+    
+    if (images.length === 0) {
+      newErrors.images = 'Trebuie să adaugi cel puțin o fotografie';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -117,19 +375,33 @@ const EditListingPage = () => {
     setIsSubmitting(true);
     
     try {
-      const { error } = await supabase
-        .from('listings')
-        .update({
-          title: formData.title.trim(),
-          price: parseFloat(formData.price),
-          description: formData.description.trim(),
-          mileage: parseInt(formData.mileage) || originalListing.mileage,
-          year: parseInt(formData.year) || originalListing.year,
-          location: formData.location.trim() || originalListing.location,
-          condition: formData.condition || originalListing.condition,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
+      // Pregătim datele pentru actualizare
+      const updateData = {
+        title: formData.title.trim(),
+        price: parseFloat(formData.price),
+        description: formData.description.trim(),
+        mileage: parseInt(formData.mileage),
+        year: parseInt(formData.year),
+        location: formData.location.trim(),
+        category: mapValueForDatabase('category', formData.category),
+        brand: formData.brand,
+        model: formData.model.trim(),
+        engine_capacity: parseInt(formData.engine_capacity),
+        fuel_type: mapValueForDatabase('fuel_type', formData.fuel_type),
+        transmission: mapValueForDatabase('transmission', formData.transmission),
+        condition: mapValueForDatabase('condition', formData.condition),
+        color: formData.color.trim(),
+        features: formData.features,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Actualizăm anunțul
+      const { data, error } = await listings.update(
+        id!, 
+        updateData, 
+        newImageFiles.length > 0 ? newImageFiles : undefined,
+        imagesToRemove.length > 0 ? imagesToRemove : undefined
+      );
       
       if (error) {
         throw error;
@@ -170,102 +442,468 @@ const EditListingPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-8">Editează Anunțul</h1>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Titlu *
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
-                  errors.title ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="ex: Yamaha YZF-R1 2023"
-              />
-              {errors.title && (
-                <p className="mt-1 text-sm text-red-600">{errors.title}</p>
-              )}
+            {/* Informații de bază */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-gray-900">Informații de bază</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Titlu anunț *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.title ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="ex: Yamaha YZF-R1 2023"
+                  />
+                  {errors.title && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.title}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Categorie *
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.category ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Selectează categoria</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  {errors.category && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.category}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Marcă *
+                  </label>
+                  <select
+                    value={formData.brand}
+                    onChange={(e) => handleInputChange('brand', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.brand ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Selectează marca</option>
+                    {brands.map(brand => (
+                      <option key={brand} value={brand}>{brand}</option>
+                    ))}
+                  </select>
+                  {errors.brand && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.brand}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Model *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.model}
+                    onChange={(e) => handleInputChange('model', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.model ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="ex: YZF-R1"
+                  />
+                  {errors.model && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.model}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    An fabricație *
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.year}
+                    onChange={(e) => handleInputChange('year', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.year ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="2023"
+                    min="1990"
+                    max="2025"
+                  />
+                  {errors.year && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.year}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kilometraj *
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.mileage}
+                    onChange={(e) => handleInputChange('mileage', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.mileage ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="25000"
+                    min="0"
+                    max="500000"
+                  />
+                  {errors.mileage && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.mileage}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Capacitate motor (cc) *
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.engine_capacity}
+                    onChange={(e) => handleInputChange('engine_capacity', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.engine_capacity ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="998"
+                    min="50"
+                    max="3000"
+                  />
+                  {errors.engine_capacity && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.engine_capacity}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Combustibil *
+                  </label>
+                  <select
+                    value={formData.fuel_type}
+                    onChange={(e) => handleInputChange('fuel_type', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.fuel_type ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Selectează combustibilul</option>
+                    {fuelTypes.map(fuel => (
+                      <option key={fuel} value={fuel}>{fuel}</option>
+                    ))}
+                  </select>
+                  {errors.fuel_type && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.fuel_type}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Transmisie *
+                  </label>
+                  <select
+                    value={formData.transmission}
+                    onChange={(e) => handleInputChange('transmission', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.transmission ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Selectează transmisia</option>
+                    {transmissionTypes.map(trans => (
+                      <option key={trans} value={trans}>{trans}</option>
+                    ))}
+                  </select>
+                  {errors.transmission && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.transmission}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Culoare *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.color}
+                    onChange={(e) => handleInputChange('color', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.color ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="ex: Albastru Racing"
+                  />
+                  {errors.color && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.color}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Starea *
+                  </label>
+                  <select
+                    value={formData.condition}
+                    onChange={(e) => handleInputChange('condition', e.target.value)}
+                    className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                      errors.condition ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Selectează starea</option>
+                    {conditions.map(condition => (
+                      <option key={condition} value={condition}>{condition}</option>
+                    ))}
+                  </select>
+                  {errors.condition && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.condition}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Locația *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => handleLocationChange(e.target.value)}
+                      onFocus={() => {
+                        if (formData.location.length > 0) {
+                          const filtered = romanianCities.filter(city =>
+                            city.toLowerCase().includes(formData.location.toLowerCase())
+                          ).slice(0, 10);
+                          setFilteredCities(filtered);
+                          setShowLocationDropdown(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay pentru a permite click-ul pe opțiuni
+                        setTimeout(() => setShowLocationDropdown(false), 200);
+                      }}
+                      className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                        errors.location ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="ex: București"
+                    />
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    
+                    {/* Dropdown cu orașe */}
+                    {showLocationDropdown && filteredCities.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {filteredCities.map((city, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => selectCity(city)}
+                            className="w-full text-left px-4 py-2 hover:bg-nexar-accent hover:text-white transition-colors text-sm border-b border-gray-100 last:border-b-0"
+                          >
+                            {city}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {errors.location && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.location}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Preț (EUR) *
-              </label>
-              <input
-                type="number"
-                value={formData.price}
-                onChange={(e) => handleInputChange('price', e.target.value)}
-                className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
-                  errors.price ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="18500"
-              />
-              {errors.price && (
-                <p className="mt-1 text-sm text-red-600">{errors.price}</p>
+            
+            {/* Fotografii */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-gray-900">Fotografii</h2>
+              
+              {errors.images && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-600 flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    {errors.images}
+                  </p>
+                </div>
               )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {images.map((image, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={image}
+                      alt={`Upload ${index + 1}`}
+                      className="w-full h-48 object-cover rounded-lg"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.src = "https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg";
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    {index === 0 && (
+                      <div className="absolute bottom-2 left-2 bg-gray-900 text-white px-2 py-1 rounded text-xs font-semibold">
+                        Foto principală
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {images.length < 5 && (
+                  <label className="border-2 border-dashed border-gray-300 rounded-lg h-48 flex flex-col items-center justify-center cursor-pointer hover:border-gray-900 transition-colors">
+                    <Camera className="h-8 w-8 text-gray-400 mb-2" />
+                    <span className="text-gray-600">Adaugă fotografie</span>
+                    <span className="text-sm text-gray-400">({images.length}/5)</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-800 mb-2">Sfaturi pentru fotografii de calitate:</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Fotografiază în lumină naturală</li>
+                  <li>• Include imagini din toate unghiurile</li>
+                  <li>• Arată detaliile importante și eventualele defecte</li>
+                  <li>• Prima fotografie va fi cea principală</li>
+                  <li>• Limită de 5MB per imagine</li>
+                  <li>• Maxim 5 imagini per anunț</li>
+                </ul>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Descriere *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                rows={8}
-                className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
-                  errors.description ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Descrie motocicleta în detaliu..."
-              />
-              {errors.description && (
-                <p className="mt-1 text-sm text-red-600">{errors.description}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Preț și descriere */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-gray-900">Preț și descriere</h2>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kilometraj
+                  Preț (EUR) *
                 </label>
                 <input
                   type="number"
-                  value={formData.mileage}
-                  onChange={(e) => handleInputChange('mileage', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                  placeholder="25000"
+                  value={formData.price}
+                  onChange={(e) => handleInputChange('price', e.target.value)}
+                  className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent text-2xl font-bold ${
+                    errors.price ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="18500"
+                  min="100"
+                  max="1000000"
                 />
+                {errors.price && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    {errors.price}
+                  </p>
+                )}
               </div>
-
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  An fabricație
+                  Descriere detaliată *
                 </label>
-                <input
-                  type="number"
-                  value={formData.year}
-                  onChange={(e) => handleInputChange('year', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                  placeholder="2023"
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  rows={8}
+                  className={`w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent ${
+                    errors.description ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Descrie motocicleta în detaliu: starea tehnică, istoricul, modificările, etc."
                 />
+                <div className="flex justify-between items-center mt-1">
+                  {errors.description ? (
+                    <p className="text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {errors.description}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      Minim 50 caractere, maxim 2000 caractere
+                    </p>
+                  )}
+                  <span className={`text-sm ${
+                    formData.description.length > 2000 ? 'text-red-600' : 
+                    formData.description.length < 50 ? 'text-orange-600' : 'text-green-600'
+                  }`}>
+                    {formData.description.length}/2000
+                  </span>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  Dotări și caracteristici
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {availableFeatures.map(feature => (
+                    <label key={feature} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.features.includes(feature)}
+                        onChange={() => handleFeatureToggle(feature)}
+                        className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                      />
+                      <span className="text-sm">{feature}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Locația
-              </label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                placeholder="București"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-4 pt-6">
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={() => navigate('/profil')}
@@ -276,9 +914,19 @@ const EditListingPage = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-8 py-3 bg-nexar-accent text-white rounded-lg font-semibold hover:bg-nexar-gold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-8 py-3 bg-nexar-accent text-white rounded-lg font-semibold hover:bg-nexar-gold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                {isSubmitting ? 'Se salvează...' : 'Salvează Modificările'}
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Se salvează...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Salvează Modificările</span>
+                    <Check className="h-5 w-5" />
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -289,8 +937,10 @@ const EditListingPage = () => {
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         onGoHome={() => navigate('/profil')}
+        onViewListing={() => navigate(`/anunt/${id}`)}
         title="Succes!"
         message="Anunțul a fost actualizat cu succes!"
+        showViewButton={true}
       />
     </div>
   );

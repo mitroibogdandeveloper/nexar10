@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, Building, AlertTriangle, CheckCircle, ChevronDown } from 'lucide-react';
 import { auth, supabase, romanianCities } from '../lib/supabase';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isResetPassword, setIsResetPassword] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const successMessageRef = useRef<HTMLDivElement>(null);
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -36,7 +40,52 @@ const AuthPage = () => {
     };
     
     checkAuth();
-  }, [navigate]);
+    
+    // Verificăm dacă suntem pe pagina de confirmare email sau resetare parolă
+    const hash = location.hash;
+    if (hash.includes('#access_token=') || hash.includes('type=recovery')) {
+      handleAuthRedirect();
+    }
+  }, [navigate, location]);
+
+  // Funcție pentru a gestiona redirecturile de autentificare
+  const handleAuthRedirect = async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error handling auth redirect:', error);
+        setError('A apărut o eroare la procesarea link-ului. Te rugăm să încerci din nou.');
+        return;
+      }
+      
+      if (data?.session) {
+        // Verificăm dacă este confirmare email sau resetare parolă
+        const hash = location.hash;
+        
+        if (hash.includes('type=recovery')) {
+          // Este resetare parolă
+          setIsPasswordReset(true);
+          setIsLogin(false);
+          setIsResetPassword(false);
+          setSuccessMessage('Poți seta acum o nouă parolă pentru contul tău.');
+        } else {
+          // Este confirmare email sau login normal
+          navigate('/auth/confirm');
+        }
+      }
+    } catch (err) {
+      console.error('Error in handleAuthRedirect:', err);
+      setError('A apărut o eroare la procesarea link-ului. Te rugăm să încerci din nou.');
+    }
+  };
+
+  // Scroll la mesajul de succes când apare
+  useEffect(() => {
+    if (successMessage && successMessageRef.current) {
+      successMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [successMessage]);
 
   // Funcții de validare
   const validateName = (name: string): string => {
@@ -161,8 +210,16 @@ const AuthPage = () => {
   const validateForm = async (): Promise<boolean> => {
     const errors: Record<string, string> = {};
 
-    if (isResetPassword) {
+    if (isPasswordReset) {
       // Validare pentru resetarea parolei
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) errors.password = passwordError;
+      
+      if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = 'Parolele nu coincid';
+      }
+    } else if (isResetPassword) {
+      // Validare pentru cererea de resetare a parolei
       const emailError = validateEmail(formData.email);
       if (emailError) errors.email = emailError;
     } else if (isLogin) {
@@ -217,6 +274,11 @@ const AuthPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isPasswordReset) {
+      await handleSetNewPassword();
+      return;
+    }
     
     if (isResetPassword) {
       await handleResetPassword();
@@ -292,21 +354,26 @@ const AuthPage = () => {
           
           if (!data.session) {
             setSuccessMessage('Cont creat cu succes! Verifică-ți email-ul pentru a confirma contul înainte de a te conecta.');
+            
+            // Resetăm formularul
+            setFormData({
+              name: '',
+              email: '',
+              password: '',
+              confirmPassword: '',
+              phone: '',
+              location: '',
+              sellerType: 'individual',
+              agreeToTerms: false
+            });
           } else {
             setSuccessMessage('Cont creat cu succes! Ești acum conectat.');
+            
+            // Redirecționăm către pagina principală după 2 secunde
+            setTimeout(() => {
+              navigate('/');
+            }, 2000);
           }
-          
-          // Resetăm formularul
-          setFormData({
-            name: '',
-            email: '',
-            password: '',
-            confirmPassword: '',
-            phone: '',
-            location: '',
-            sellerType: 'individual',
-            agreeToTerms: false
-          });
         }
       }
     } catch (err: any) {
@@ -337,6 +404,49 @@ const AuthPage = () => {
     } catch (err) {
       console.error('Password reset error:', err);
       setError('A apărut o eroare. Te rugăm să încerci din nou.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSetNewPassword = async () => {
+    // Validare
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      setValidationErrors({ password: passwordError });
+      return;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setValidationErrors({ confirmPassword: 'Parolele nu coincid' });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const { error } = await auth.updatePassword(formData.password);
+      
+      if (error) {
+        console.error('Error setting new password:', error);
+        setError(`Eroare la setarea noii parole: ${error.message}`);
+      } else {
+        setSuccessMessage('Parola a fost actualizată cu succes! Te poți conecta acum cu noile credențiale.');
+        
+        // Resetăm starea și redirecționăm către login după 3 secunde
+        setTimeout(() => {
+          setIsPasswordReset(false);
+          setIsLogin(true);
+          setFormData({
+            ...formData,
+            password: '',
+            confirmPassword: ''
+          });
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('Error setting new password:', err);
+      setError('A apărut o eroare la setarea noii parole. Te rugăm să încerci din nou.');
     } finally {
       setIsLoading(false);
     }
@@ -374,22 +484,21 @@ const AuthPage = () => {
               </div>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-              {isResetPassword ? 'Resetare Parolă' : (isLogin ? 'Conectează-te' : 'Creează Cont')}
+              {isPasswordReset ? 'Setează o nouă parolă' : 
+               isResetPassword ? 'Resetare Parolă' : 
+               (isLogin ? 'Conectează-te' : 'Creează Cont')}
             </h2>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">
-              {isResetPassword 
-                ? 'Introdu adresa de email pentru a primi un link de resetare a parolei'
-                : (isLogin 
-                  ? 'Bun venit înapoi! Conectează-te la contul tău.' 
-                  : 'Alătură-te comunității și începe să vinzi sau să cumperi motociclete.'
-                )
-              }
+              {isPasswordReset ? 'Introdu noua parolă pentru contul tău' :
+               isResetPassword ? 'Introdu adresa de email pentru a primi un link de resetare a parolei' :
+               (isLogin ? 'Bun venit înapoi! Conectează-te la contul tău.' : 
+                'Alătură-te comunității și începe să vinzi sau să cumperi motociclete.')}
             </p>
           </div>
 
           {/* Success Message */}
           {successMessage && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div ref={successMessageRef} className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-green-700 flex items-center">
                 <CheckCircle className="h-5 w-5 mr-2" />
                 {successMessage}
@@ -408,7 +517,7 @@ const AuthPage = () => {
           )}
 
           {/* Toggle Buttons */}
-          {!isResetPassword && (
+          {!isResetPassword && !isPasswordReset && (
             <div className="flex bg-gray-50 rounded-xl p-1 mb-6 sm:mb-8">
               <button
                 onClick={() => {
@@ -447,7 +556,7 @@ const AuthPage = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            {!isLogin && !isResetPassword && (
+            {!isLogin && !isResetPassword && !isPasswordReset && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nume complet *
@@ -461,7 +570,7 @@ const AuthPage = () => {
                       validationErrors.name ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Bogdan Popescu"
-                    required={!isLogin && !isResetPassword}
+                    required={!isLogin && !isResetPassword && !isPasswordReset}
                   />
                   <User className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
@@ -474,37 +583,39 @@ const AuthPage = () => {
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={`w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 border rounded-xl focus:ring-2 focus:ring-nexar-accent focus:border-transparent transition-colors text-sm sm:text-base ${
-                    validationErrors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="bogdan@exemplu.com"
-                  required
-                />
-                <Mail className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
-                {isValidating && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="w-4 h-4 border-2 border-nexar-accent border-t-transparent rounded-full animate-spin"></div>
-                  </div>
+            {!isPasswordReset && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className={`w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 border rounded-xl focus:ring-2 focus:ring-nexar-accent focus:border-transparent transition-colors text-sm sm:text-base ${
+                      validationErrors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="bogdan@exemplu.com"
+                    required
+                  />
+                  <Mail className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
+                  {isValidating && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="w-4 h-4 border-2 border-nexar-accent border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </div>
+                {validationErrors.email && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    {validationErrors.email}
+                  </p>
                 )}
               </div>
-              {validationErrors.email && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertTriangle className="h-4 w-4 mr-1" />
-                  {validationErrors.email}
-                </p>
-              )}
-            </div>
+            )}
 
-            {!isLogin && !isResetPassword && (
+            {!isLogin && !isResetPassword && !isPasswordReset && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -519,7 +630,7 @@ const AuthPage = () => {
                         validationErrors.phone ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="0790 45 46 47"
-                      required={!isLogin && !isResetPassword}
+                      required={!isLogin && !isResetPassword && !isPasswordReset}
                     />
                     <Phone className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
@@ -557,7 +668,7 @@ const AuthPage = () => {
                         validationErrors.location ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Începe să scrii orașul..."
-                      required={!isLogin && !isResetPassword}
+                      required={!isLogin && !isResetPassword && !isPasswordReset}
                       autoComplete="off"
                     />
                     <MapPin className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
@@ -596,7 +707,7 @@ const AuthPage = () => {
                       value={formData.sellerType}
                       onChange={(e) => handleInputChange('sellerType', e.target.value)}
                       className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-nexar-accent focus:border-transparent transition-colors appearance-none text-sm sm:text-base"
-                      required={!isLogin && !isResetPassword}
+                      required={!isLogin && !isResetPassword && !isPasswordReset}
                     >
                       <option value="individual">Vânzător Privat</option>
                       <option value="dealer">Dealer Autorizat</option>
@@ -641,7 +752,7 @@ const AuthPage = () => {
               </div>
             )}
 
-            {!isLogin && !isResetPassword && (
+            {((!isLogin && !isResetPassword) || isPasswordReset) && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Confirmă parola *
@@ -655,7 +766,7 @@ const AuthPage = () => {
                       validationErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="••••••••"
-                    required={!isLogin && !isResetPassword}
+                    required={(!isLogin && !isResetPassword) || isPasswordReset}
                   />
                   <Lock className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
@@ -668,7 +779,7 @@ const AuthPage = () => {
               </div>
             )}
 
-            {isLogin && !isResetPassword && (
+            {isLogin && !isResetPassword && !isPasswordReset && (
               <div className="flex items-center justify-between">
                 <label className="flex items-center">
                   <input
@@ -691,14 +802,14 @@ const AuthPage = () => {
               </div>
             )}
 
-            {!isLogin && !isResetPassword && (
+            {!isLogin && !isResetPassword && !isPasswordReset && (
               <div className="flex items-start space-x-3">
                 <input
                   type="checkbox"
                   checked={formData.agreeToTerms}
                   onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
                   className="mt-1 rounded border-gray-300 text-nexar-accent focus:ring-nexar-accent"
-                  required={!isLogin && !isResetPassword}
+                  required={!isLogin && !isResetPassword && !isPasswordReset}
                 />
                 <span className="text-sm text-gray-600">
                   Sunt de acord cu{' '}
@@ -725,6 +836,7 @@ const AuthPage = () => {
               className="w-full bg-nexar-accent text-white py-2.5 sm:py-3 rounded-xl font-semibold hover:bg-nexar-gold transition-colors transform hover:scale-105 duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {isLoading ? 'Se procesează...' : (
+                isPasswordReset ? 'Setează noua parolă' :
                 isResetPassword ? 'Trimite link de resetare' : 
                 (isLogin ? 'Conectează-te' : 'Creează Cont')
               )}
@@ -733,12 +845,14 @@ const AuthPage = () => {
 
           {/* Footer */}
           <div className="mt-6 sm:mt-8 text-center">
-            {isResetPassword ? (
+            {isResetPassword || isPasswordReset ? (
               <p className="text-sm text-gray-600">
                 Ți-ai amintit parola?{' '}
                 <button
                   onClick={() => {
                     setIsResetPassword(false);
+                    setIsPasswordReset(false);
+                    setIsLogin(true);
                     setError('');
                     setSuccessMessage('');
                   }}
