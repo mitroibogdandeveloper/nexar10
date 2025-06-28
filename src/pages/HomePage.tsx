@@ -113,6 +113,10 @@ const HomePage = () => {
 			setError("A apărut o eroare la încărcarea anunțurilor");
 		} finally {
 			setIsLoading(false);
+			if (loadingTimeout) {
+				clearTimeout(loadingTimeout);
+				setLoadingTimeout(null);
+			}
 		}
 	};
 
@@ -702,7 +706,7 @@ const HomePage = () => {
 											<option value="Sibiu">Sibiu</option>
 											<option value="Bacău">Bacău</option>
 											<option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-											{romanianCities.map(city => (
+                      {romanianCities.map(city => (
                         !city.startsWith("București") && 
                         city !== "Râmnicu Vâlcea" && 
                         city !== "Rm. Vâlcea" && (
@@ -883,7 +887,7 @@ const HomePage = () => {
 											<option value="Sibiu">Sibiu</option>
 											<option value="Bacău">Bacău</option>
 											<option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-											{romanianCities.map(city => (
+                      {romanianCities.map(city => (
                         !city.startsWith("București") && 
                         city !== "Râmnicu Vâlcea" && 
                         city !== "Rm. Vâlcea" && (

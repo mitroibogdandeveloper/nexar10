@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Check, AlertTriangle, Camera } from 'lucide-react';
 import { listings, isAuthenticated, supabase, romanianCities } from '../lib/supabase';
@@ -43,8 +43,8 @@ const CreateListingPage = () => {
     const timeout = setTimeout(() => {
       if (isLoadingProfile) {
         console.warn('Loading timeout reached in CreateListingPage');
-        setIsLoadingProfile(false);
         setErrors({ profile: 'Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.' });
+        setIsLoadingProfile(false);
       }
     }, 15000); // 15 seconds timeout
     

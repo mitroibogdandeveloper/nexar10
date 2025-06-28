@@ -711,15 +711,20 @@ export const listings = {
       // Ștergem imaginile din storage
       if (listing && listing.images) {
         for (const imageUrl of listing.images) {
-          // Extragem path-ul din URL
-          const urlParts = imageUrl.split('/')
-          const fileName = urlParts[urlParts.length - 1]
-          const sellerFolder = urlParts[urlParts.length - 2]
-          const filePath = `${sellerFolder}/${fileName}`
-          
-          await supabase.storage
-            .from('listing-images')
-            .remove([filePath])
+          try {
+            // Extragem path-ul din URL
+            const urlParts = imageUrl.split('/')
+            const fileName = urlParts[urlParts.length - 1]
+            const sellerFolder = urlParts[urlParts.length - 2]
+            const filePath = `${sellerFolder}/${fileName}`
+            
+            await supabase.storage
+              .from('listing-images')
+              .remove([filePath])
+          } catch (error) {
+            console.error('Error removing image:', error)
+            // Continuăm cu ștergerea anunțului chiar dacă ștergerea imaginilor eșuează
+          }
         }
       }
       
@@ -956,7 +961,7 @@ export const admin = {
       console.log(`✅ Successfully fetched ${data?.length || 0} listings for admin`)
       return { data, error: null }
     } catch (err) {
-      console.error('💥 Error in admin.getAllListings:', err)
+      console.error('💥 Error in listings.getAllForAdmin:', err)
       return { data: null, error: err }
     }
   },

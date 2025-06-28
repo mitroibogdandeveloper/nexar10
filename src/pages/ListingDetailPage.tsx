@@ -142,6 +142,11 @@ const ListingDetailPage = () => {
 			};
 
 			setListing(formattedListing);
+			
+			if (loadingTimeout) {
+				clearTimeout(loadingTimeout);
+				setLoadingTimeout(null);
+			}
 		} catch (err) {
 			console.error("💥 Error in loadListing:", err);
 			setError("A apărut o eroare la încărcarea anunțului");

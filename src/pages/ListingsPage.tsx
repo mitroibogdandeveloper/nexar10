@@ -110,6 +110,10 @@ const ListingsPage = () => {
       
       setAllListings(formattedListings);
       
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     } catch (err) {
       console.error('💥 Error in loadListings:', err);
       setError('A apărut o eroare la încărcarea anunțurilor');
@@ -424,18 +428,18 @@ const ListingsPage = () => {
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
                     >
                       <option value="">Toate categoriile</option>
-                      <option value="Sport">Sport</option>
-                      <option value="Touring">Touring</option>
-                      <option value="Cruiser">Cruiser</option>
-                      <option value="Adventure">Adventure</option>
-                      <option value="Naked">Naked</option>
-                      <option value="Enduro">Enduro</option>
-                      <option value="Scooter">Scooter</option>
-                      <option value="Chopper">Chopper</option>
-                      <option value="Cafe Racer">Cafe Racer</option>
-                      <option value="Supermoto">Supermoto</option>
-                      <option value="Motocross">Motocross</option>
-                      <option value="Trial">Trial</option>
+                      <option value="sport">Sport</option>
+                      <option value="touring">Touring</option>
+                      <option value="cruiser">Cruiser</option>
+                      <option value="adventure">Adventure</option>
+                      <option value="naked">Naked</option>
+                      <option value="enduro">Enduro</option>
+                      <option value="scooter">Scooter</option>
+                      <option value="chopper">Chopper</option>
+                      <option value="cafe Racer">Cafe Racer</option>
+                      <option value="supermoto">Supermoto</option>
+                      <option value="motocross">Motocross</option>
+                      <option value="trial">Trial</option>
                     </select>
                   </div>
 
