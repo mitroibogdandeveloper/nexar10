@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { X, Plus, Check, AlertTriangle, Camera, ArrowLeft, ChevronDown, Trash2 } from 'lucide-react';
 import { listings, isAuthenticated, supabase, romanianCities, admin } from '../lib/supabase';
 import SuccessModal from '../components/SuccessModal';
+import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const EditListingPage = () => {
   const { id } = useParams();
