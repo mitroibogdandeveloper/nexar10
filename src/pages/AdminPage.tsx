@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, Package, Settings, ChevronRight, Edit, Trash2, 
-  CheckCircle, XCircle, Eye, AlertTriangle, Search, Filter,
-  User, Building, Calendar, MapPin, ArrowUpDown, Check, X,
-  RefreshCw, Shield, ExternalLink
+  Users, Package, Settings, Search, Filter, 
+  ChevronDown, ChevronUp, Edit, Trash2, Eye, 
+  CheckCircle, XCircle, AlertTriangle, RefreshCw,
+  User, Building, Calendar, MapPin, Clock
 } from 'lucide-react';
-import { admin, supabase, romanianCities } from '../lib/supabase';
-import FixSupabaseButton from '../components/FixSupabaseButton';
+import { admin, supabase } from '../lib/supabase';
 
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('listings');
@@ -15,13 +14,13 @@ const AdminPage = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [expandedListing, setExpandedListing] = useState<string | null>(null);
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sellerTypeFilter, setSellerTypeFilter] = useState('all');
-  const [sortField, setSortField] = useState('created_at');
-  const [sortDirection, setSortDirection] = useState('desc');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isProcessing, setIsProcessing] = useState<{[key: string]: boolean}>({});
+  const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,7 +36,7 @@ const AdminPage = () => {
       const isAdminUser = await admin.isAdmin();
       
       if (!isAdminUser) {
-        console.error('User is not admin');
+        setError('Nu ai permisiunea de a accesa această pagină. Doar administratorii pot vedea panoul de administrare.');
         setIsAdmin(false);
         return;
       }
@@ -46,53 +45,36 @@ const AdminPage = () => {
       
       // Încărcăm datele inițiale
       if (activeTab === 'listings') {
-        await loadListings();
-      } else {
-        await loadUsers();
-      }
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      setError('A apărut o eroare la verificarea statusului de administrator');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isAdmin) {
-      if (activeTab === 'listings') {
         loadListings();
       } else {
         loadUsers();
       }
+    } catch (err) {
+      console.error('Error checking admin status:', err);
+      setError('A apărut o eroare la verificarea statusului de administrator.');
+      setIsAdmin(false);
+    } finally {
+      setIsLoading(false);
     }
-  }, [activeTab, isAdmin]);
+  };
 
   const loadListings = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Folosim getAllListings din admin pentru a obține toate anunțurile
       const { data, error } = await admin.getAllListings();
       
       if (error) {
         console.error('Error loading listings:', error);
-        setError('Nu s-au putut încărca anunțurile');
+        setError('A apărut o eroare la încărcarea anunțurilor.');
         return;
       }
       
-      if (!data) {
-        console.error('No listings data returned');
-        setError('Nu s-au găsit anunțuri');
-        return;
-      }
-      
-      console.log(`Loaded ${data.length} listings`);
-      setListings(data);
+      setListings(data || []);
     } catch (err) {
-      console.error('Error in loadListings:', err);
-      setError('A apărut o eroare la încărcarea anunțurilor');
+      console.error('Error loading listings:', err);
+      setError('A apărut o eroare la încărcarea anunțurilor.');
     } finally {
       setIsLoading(false);
     }
@@ -107,29 +89,42 @@ const AdminPage = () => {
       
       if (error) {
         console.error('Error loading users:', error);
-        setError('Nu s-au putut încărca utilizatorii');
+        setError('A apărut o eroare la încărcarea utilizatorilor.');
         return;
       }
       
-      if (!data) {
-        console.error('No users data returned');
-        setError('Nu s-au găsit utilizatori');
-        return;
-      }
-      
-      console.log(`Loaded ${data.length} users`);
-      setUsers(data);
+      setUsers(data || []);
     } catch (err) {
-      console.error('Error in loadUsers:', err);
-      setError('A apărut o eroare la încărcarea utilizatorilor');
+      console.error('Error loading users:', err);
+      setError('A apărut o eroare la încărcarea utilizatorilor.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchQuery('');
+    setStatusFilter('all');
+    
+    if (tab === 'listings') {
+      loadListings();
+    } else {
+      loadUsers();
+    }
+  };
+
+  const toggleListingExpand = (id: string) => {
+    setExpandedListing(expandedListing === id ? null : id);
+  };
+
+  const toggleUserExpand = (id: string) => {
+    setExpandedUser(expandedUser === id ? null : id);
+  };
+
   const handleUpdateListingStatus = async (listingId: string, status: string) => {
     try {
-      setIsProcessing(prev => ({ ...prev, [listingId]: true }));
+      setIsUpdatingStatus(prev => ({ ...prev, [listingId]: true }));
       
       const { error } = await admin.updateListingStatus(listingId, status);
       
@@ -148,10 +143,10 @@ const AdminPage = () => {
       
       alert(`Statusul anunțului a fost actualizat la: ${status}`);
     } catch (err) {
-      console.error('Error in handleUpdateListingStatus:', err);
-      alert('A apărut o eroare la actualizarea statusului');
+      console.error('Error updating listing status:', err);
+      alert('A apărut o eroare la actualizarea statusului.');
     } finally {
-      setIsProcessing(prev => ({ ...prev, [listingId]: false }));
+      setIsUpdatingStatus(prev => ({ ...prev, [listingId]: false }));
     }
   };
 
@@ -159,7 +154,7 @@ const AdminPage = () => {
     if (!confirm('Ești sigur că vrei să ștergi acest anunț?')) return;
     
     try {
-      setIsProcessing(prev => ({ ...prev, [listingId]: true }));
+      setIsDeleting(prev => ({ ...prev, [listingId]: true }));
       
       const { error } = await admin.deleteListing(listingId);
       
@@ -174,22 +169,22 @@ const AdminPage = () => {
       
       alert('Anunțul a fost șters cu succes!');
     } catch (err) {
-      console.error('Error in handleDeleteListing:', err);
-      alert('A apărut o eroare la ștergerea anunțului');
+      console.error('Error deleting listing:', err);
+      alert('A apărut o eroare la ștergerea anunțului.');
     } finally {
-      setIsProcessing(prev => ({ ...prev, [listingId]: false }));
+      setIsDeleting(prev => ({ ...prev, [listingId]: false }));
     }
   };
 
   const handleToggleUserStatus = async (userId: string, suspended: boolean) => {
     try {
-      setIsProcessing(prev => ({ ...prev, [userId]: true }));
+      setIsUpdatingStatus(prev => ({ ...prev, [userId]: true }));
       
       const { error } = await admin.toggleUserStatus(userId, suspended);
       
       if (error) {
         console.error('Error toggling user status:', error);
-        alert(`Eroare la ${suspended ? 'suspendarea' : 'activarea'} utilizatorului: ${error.message}`);
+        alert(`Eroare la actualizarea statusului utilizatorului: ${error.message}`);
         return;
       }
       
@@ -202,18 +197,18 @@ const AdminPage = () => {
       
       alert(`Utilizatorul a fost ${suspended ? 'suspendat' : 'activat'} cu succes!`);
     } catch (err) {
-      console.error('Error in handleToggleUserStatus:', err);
-      alert('A apărut o eroare la modificarea statusului utilizatorului');
+      console.error('Error toggling user status:', err);
+      alert('A apărut o eroare la actualizarea statusului utilizatorului.');
     } finally {
-      setIsProcessing(prev => ({ ...prev, [userId]: false }));
+      setIsUpdatingStatus(prev => ({ ...prev, [userId]: false }));
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('ATENȚIE: Această acțiune va șterge utilizatorul și toate anunțurile sale. Ești sigur că vrei să continui?')) return;
+    if (!confirm('Ești sigur că vrei să ștergi acest utilizator? Această acțiune va șterge și toate anunțurile asociate.')) return;
     
     try {
-      setIsProcessing(prev => ({ ...prev, [userId]: true }));
+      setIsDeleting(prev => ({ ...prev, [userId]: true }));
       
       // Obținem profilul utilizatorului pentru a avea ID-ul profilului
       const { data: profile, error: profileError } = await supabase
@@ -241,14 +236,23 @@ const AdminPage = () => {
       }
       
       // Ștergem profilul utilizatorului
-      const { error: deleteError } = await supabase
+      const { error: deleteProfileError } = await supabase
         .from('profiles')
         .delete()
         .eq('user_id', userId);
       
-      if (deleteError) {
-        console.error('Error deleting user profile:', deleteError);
-        alert(`Eroare la ștergerea profilului utilizatorului: ${deleteError.message}`);
+      if (deleteProfileError) {
+        console.error('Error deleting user profile:', deleteProfileError);
+        alert(`Eroare la ștergerea profilului utilizatorului: ${deleteProfileError.message}`);
+        return;
+      }
+      
+      // Ștergem utilizatorul din auth
+      const { error: deleteUserError } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (deleteUserError) {
+        console.error('Error deleting auth user:', deleteUserError);
+        alert(`Eroare la ștergerea utilizatorului: ${deleteUserError.message}`);
         return;
       }
       
@@ -256,120 +260,57 @@ const AdminPage = () => {
       setUsers(prev => prev.filter(user => user.user_id !== userId));
       
       alert('Utilizatorul și toate anunțurile sale au fost șterse cu succes!');
-      
-      // Reîncărcăm anunțurile pentru a reflecta schimbările
-      loadListings();
     } catch (err) {
-      console.error('Error in handleDeleteUser:', err);
-      alert('A apărut o eroare la ștergerea utilizatorului');
+      console.error('Error deleting user:', err);
+      alert('A apărut o eroare la ștergerea utilizatorului.');
     } finally {
-      setIsProcessing(prev => ({ ...prev, [userId]: false }));
+      setIsDeleting(prev => ({ ...prev, [userId]: false }));
     }
   };
 
-  // Filtrare și sortare pentru anunțuri
+  // Filtrare anunțuri
   const filteredListings = listings.filter(listing => {
-    // Filtrare după text
     const matchesSearch = 
       searchQuery === '' || 
-      listing.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.seller_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.location?.toLowerCase().includes(searchQuery.toLowerCase());
+      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.seller_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.location.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Filtrare după status
-    const matchesStatus = statusFilter === 'all' || listing.status === statusFilter;
+    const matchesStatus = 
+      statusFilter === 'all' || 
+      listing.status === statusFilter;
     
-    // Filtrare după tip vânzător
-    const matchesSellerType = sellerTypeFilter === 'all' || listing.seller_type === sellerTypeFilter;
-    
-    return matchesSearch && matchesStatus && matchesSellerType;
-  }).sort((a, b) => {
-    // Sortare
-    if (sortField === 'price') {
-      return sortDirection === 'asc' ? a.price - b.price : b.price - a.price;
-    } else if (sortField === 'created_at') {
-      return sortDirection === 'asc' 
-        ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    }
-    return 0;
+    return matchesSearch && matchesStatus;
   });
 
-  // Filtrare pentru utilizatori
+  // Filtrare utilizatori
   const filteredUsers = users.filter(user => 
     searchQuery === '' || 
-    user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Funcție pentru a formata data
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'Dată necunoscută';
-    
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('ro-RO', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Dată invalidă';
-    }
-  };
-
-  // Funcție pentru a obține clasa de culoare pentru status
-  const getStatusColorClass = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'sold':
-        return 'bg-blue-100 text-blue-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Funcție pentru a obține textul pentru status
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Activ';
-      case 'pending':
-        return 'În așteptare';
-      case 'sold':
-        return 'Vândut';
-      case 'rejected':
-        return 'Respins';
-      default:
-        return status || 'Necunoscut';
-    }
-  };
-
+  // Dacă nu este admin, afișăm mesaj de eroare
   if (!isAdmin && !isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
           <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acces Interzis</h2>
-          <p className="text-gray-600 mb-6">Nu ai permisiunea de a accesa această pagină. Doar administratorii pot vedea panoul de administrare.</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => navigate('/')}
-              className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-            >
-              Înapoi la pagina principală
-            </button>
-            <FixSupabaseButton buttonText="Repară Conexiunea" />
-          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Acces restricționat
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {error || 'Nu ai permisiunea de a accesa această pagină. Doar administratorii pot vedea panoul de administrare.'}
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+          >
+            Înapoi la pagina principală
+          </button>
         </div>
       </div>
     );
@@ -388,7 +329,7 @@ const AdminPage = () => {
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
             <button
-              onClick={() => setActiveTab('listings')}
+              onClick={() => handleTabChange('listings')}
               className={`flex items-center space-x-2 px-6 py-4 font-semibold transition-colors ${
                 activeTab === 'listings'
                   ? 'text-nexar-accent border-b-2 border-nexar-accent'
@@ -396,10 +337,10 @@ const AdminPage = () => {
               }`}
             >
               <Package className="h-5 w-5" />
-              <span>Gestionare Anunțuri</span>
+              <span>Anunțuri</span>
             </button>
             <button
-              onClick={() => setActiveTab('users')}
+              onClick={() => handleTabChange('users')}
               className={`flex items-center space-x-2 px-6 py-4 font-semibold transition-colors ${
                 activeTab === 'users'
                   ? 'text-nexar-accent border-b-2 border-nexar-accent'
@@ -407,7 +348,18 @@ const AdminPage = () => {
               }`}
             >
               <Users className="h-5 w-5" />
-              <span>Gestionare Utilizatori</span>
+              <span>Utilizatori</span>
+            </button>
+            <button
+              onClick={() => handleTabChange('settings')}
+              className={`flex items-center space-x-2 px-6 py-4 font-semibold transition-colors ${
+                activeTab === 'settings'
+                  ? 'text-nexar-accent border-b-2 border-nexar-accent'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Settings className="h-5 w-5" />
+              <span>Setări</span>
             </button>
           </div>
 
@@ -422,444 +374,633 @@ const AdminPage = () => {
             )}
 
             {/* Error State */}
-            {error && !isLoading && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center space-x-3">
-                  <AlertTriangle className="h-6 w-6 text-red-500" />
-                  <div>
-                    <h3 className="font-semibold text-red-800">Eroare</h3>
-                    <p className="text-red-700">{error}</p>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-4">
-                  <button
-                    onClick={() => activeTab === 'listings' ? loadListings() : loadUsers()}
-                    className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition-colors flex items-center space-x-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    <span>Încearcă din nou</span>
-                  </button>
-                  <FixSupabaseButton buttonText="Repară Conexiunea" />
-                </div>
+            {!isLoading && error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-red-800 mb-2">Eroare</h3>
+                <p className="text-red-700 mb-4">{error}</p>
+                <button
+                  onClick={checkAdminStatus}
+                  className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center space-x-2 mx-auto"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Încearcă din nou</span>
+                </button>
               </div>
             )}
 
             {/* Listings Tab */}
-            {activeTab === 'listings' && !isLoading && !error && (
+            {!isLoading && !error && activeTab === 'listings' && (
               <div>
-                {/* Filters */}
-                <div className="mb-6 bg-gray-50 rounded-lg p-4">
-                  <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Gestionare Anunțuri</h2>
+                  
+                  <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                     {/* Search */}
-                    <div className="flex-1">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Caută după titlu, vânzător sau locație..."
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                        />
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                      </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Caută anunțuri..."
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nexar-accent focus:border-transparent w-full sm:w-64"
+                      />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     </div>
-
-                    {/* Status Filter */}
-                    <div className="w-full md:w-48">
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                      >
-                        <option value="all">Toate statusurile</option>
-                        <option value="active">Active</option>
-                        <option value="pending">În așteptare</option>
-                        <option value="sold">Vândute</option>
-                        <option value="rejected">Respinse</option>
-                      </select>
-                    </div>
-
-                    {/* Seller Type Filter */}
-                    <div className="w-full md:w-48">
-                      <select
-                        value={sellerTypeFilter}
-                        onChange={(e) => setSellerTypeFilter(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                      >
-                        <option value="all">Toți vânzătorii</option>
-                        <option value="individual">Vânzător Individual</option>
-                        <option value="dealer">Dealer Autorizat</option>
-                      </select>
-                    </div>
-
-                    {/* Sort */}
-                    <div className="w-full md:w-48">
-                      <select
-                        value={`${sortField}-${sortDirection}`}
-                        onChange={(e) => {
-                          const [field, direction] = e.target.value.split('-');
-                          setSortField(field);
-                          setSortDirection(direction);
-                        }}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                      >
-                        <option value="created_at-desc">Cele mai noi</option>
-                        <option value="created_at-asc">Cele mai vechi</option>
-                        <option value="price-desc">Preț: Descrescător</option>
-                        <option value="price-asc">Preț: Crescător</option>
-                      </select>
-                    </div>
+                    
+                    {/* Filter */}
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                    >
+                      <option value="all">Toate statusurile</option>
+                      <option value="active">Active</option>
+                      <option value="pending">În așteptare</option>
+                      <option value="sold">Vândute</option>
+                      <option value="rejected">Respinse</option>
+                    </select>
                   </div>
                 </div>
-
+                
                 {/* Listings Table */}
-                {filteredListings.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Nu există anunțuri</h3>
-                    <p className="text-gray-600">Nu am găsit anunțuri care să corespundă criteriilor de căutare.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Anunț
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Vânzător
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Preț
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Data
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Acțiuni
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredListings.length === 0 ? (
                         <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Anunț
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Vânzător
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Preț
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Data
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Acțiuni
-                          </th>
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                            Nu s-au găsit anunțuri care să corespundă criteriilor de căutare.
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredListings.map((listing) => (
-                          <tr key={listing.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden">
-                                  <img 
-                                    src={listing.images && listing.images[0] ? listing.images[0] : "https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg"} 
-                                    alt={listing.title}
-                                    className="h-10 w-10 object-cover"
-                                    onError={(e) => {
-                                      const target = e.currentTarget as HTMLImageElement;
-                                      target.src = "https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg";
-                                    }}
-                                  />
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                                    {listing.title}
-                                  </div>
-                                  <div className="text-sm text-gray-500 flex items-center">
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    {listing.location || 'Locație necunoscută'}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                {listing.seller_type === 'dealer' ? (
-                                  <div className="flex items-center space-x-1">
-                                    <Building className="h-4 w-4 text-emerald-600" />
-                                    <span className="text-sm font-medium text-gray-900">{listing.seller_name}</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center space-x-1">
-                                    <User className="h-4 w-4 text-gray-600" />
-                                    <span className="text-sm font-medium text-gray-900">{listing.seller_name}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-bold text-gray-900">€{listing.price ? listing.price.toLocaleString() : '0'}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColorClass(listing.status)}`}>
-                                {getStatusText(listing.status)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(listing.created_at)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center justify-end space-x-2">
-                                <button
-                                  onClick={() => window.open(`/anunt/${listing.id}`, '_blank')}
-                                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                                  title="Vezi anunțul"
-                                >
-                                  <Eye className="h-5 w-5" />
-                                </button>
-                                <button
-                                  onClick={() => navigate(`/editeaza-anunt/${listing.id}`)}
-                                  className="text-blue-600 hover:text-blue-800 transition-colors"
-                                  title="Editează anunțul"
-                                >
-                                  <Edit className="h-5 w-5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteListing(listing.id)}
-                                  disabled={isProcessing[listing.id]}
-                                  className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title="Șterge anunțul"
-                                >
-                                  {isProcessing[listing.id] ? (
-                                    <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                                  ) : (
-                                    <Trash2 className="h-5 w-5" />
-                                  )}
-                                </button>
-                                
-                                {/* Status Update Dropdown */}
-                                <div className="relative inline-block text-left">
-                                  <select
-                                    value={listing.status || 'active'}
-                                    onChange={(e) => handleUpdateListingStatus(listing.id, e.target.value)}
-                                    disabled={isProcessing[listing.id]}
-                                    className="border border-gray-300 rounded-md text-sm py-1 pl-2 pr-8 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-nexar-accent focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                      ) : (
+                        filteredListings.map(listing => (
+                          <React.Fragment key={listing.id}>
+                            <tr className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  <button
+                                    onClick={() => toggleListingExpand(listing.id)}
+                                    className="mr-3 text-gray-400 hover:text-gray-600 transition-colors"
                                   >
-                                    <option value="active">Activ</option>
-                                    <option value="pending">În așteptare</option>
-                                    <option value="sold">Vândut</option>
-                                    <option value="rejected">Respins</option>
-                                  </select>
+                                    {expandedListing === listing.id ? (
+                                      <ChevronUp className="h-5 w-5" />
+                                    ) : (
+                                      <ChevronDown className="h-5 w-5" />
+                                    )}
+                                  </button>
+                                  <div>
+                                    <div className="font-medium text-gray-900">{listing.title}</div>
+                                    <div className="text-sm text-gray-500">ID: {listing.id.substring(0, 8)}...</div>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  {listing.profiles?.seller_type === 'dealer' ? (
+                                    <Building className="h-4 w-4 text-green-600 mr-2" />
+                                  ) : (
+                                    <User className="h-4 w-4 text-blue-600 mr-2" />
+                                  )}
+                                  <div>
+                                    <div className="font-medium text-gray-900">{listing.seller_name}</div>
+                                    <div className="text-sm text-gray-500">{listing.profiles?.email}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  listing.status === 'active' ? 'bg-green-100 text-green-800' :
+                                  listing.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  listing.status === 'sold' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {listing.status === 'active' ? 'Activ' :
+                                   listing.status === 'pending' ? 'În așteptare' :
+                                   listing.status === 'sold' ? 'Vândut' :
+                                   'Respins'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="font-medium text-gray-900">€{listing.price.toLocaleString()}</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-gray-500">
+                                  {new Date(listing.created_at).toLocaleDateString('ro-RO')}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => navigate(`/anunt/${listing.id}`)}
+                                    className="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                                    title="Vezi anunțul"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => navigate(`/editeaza-anunt/${listing.id}`)}
+                                    className="p-1 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                                    title="Editează anunțul"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteListing(listing.id)}
+                                    disabled={isDeleting[listing.id]}
+                                    className="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors disabled:opacity-50"
+                                    title="Șterge anunțul"
+                                  >
+                                    {isDeleting[listing.id] ? (
+                                      <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            
+                            {/* Expanded Row */}
+                            {expandedListing === listing.id && (
+                              <tr>
+                                <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                      <h4 className="font-semibold text-gray-900 mb-2">Detalii Anunț</h4>
+                                      <div className="space-y-2 text-sm">
+                                        <div className="flex items-start">
+                                          <span className="font-medium text-gray-700 w-32">Descriere:</span>
+                                          <span className="text-gray-900">{listing.description || 'Fără descriere'}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Marcă/Model:</span>
+                                          <span className="text-gray-900">{listing.brand} {listing.model}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">An:</span>
+                                          <span className="text-gray-900">{listing.year}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Kilometraj:</span>
+                                          <span className="text-gray-900">{listing.mileage.toLocaleString()} km</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Locație:</span>
+                                          <span className="text-gray-900">{listing.location}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div>
+                                      <h4 className="font-semibold text-gray-900 mb-2">Acțiuni</h4>
+                                      <div className="space-y-3">
+                                        <div className="flex flex-wrap gap-2">
+                                          <button
+                                            onClick={() => handleUpdateListingStatus(listing.id, 'active')}
+                                            disabled={listing.status === 'active' || isUpdatingStatus[listing.id]}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1 ${
+                                              listing.status === 'active'
+                                                ? 'bg-green-100 text-green-800 cursor-default'
+                                                : 'bg-green-600 text-white hover:bg-green-700'
+                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                          >
+                                            {isUpdatingStatus[listing.id] ? (
+                                              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                                            ) : (
+                                              <CheckCircle className="h-4 w-4 mr-1" />
+                                            )}
+                                            <span>Activează</span>
+                                          </button>
+                                          
+                                          <button
+                                            onClick={() => handleUpdateListingStatus(listing.id, 'pending')}
+                                            disabled={listing.status === 'pending' || isUpdatingStatus[listing.id]}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1 ${
+                                              listing.status === 'pending'
+                                                ? 'bg-yellow-100 text-yellow-800 cursor-default'
+                                                : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                          >
+                                            {isUpdatingStatus[listing.id] ? (
+                                              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                                            ) : (
+                                              <Clock className="h-4 w-4 mr-1" />
+                                            )}
+                                            <span>În așteptare</span>
+                                          </button>
+                                          
+                                          <button
+                                            onClick={() => handleUpdateListingStatus(listing.id, 'sold')}
+                                            disabled={listing.status === 'sold' || isUpdatingStatus[listing.id]}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1 ${
+                                              listing.status === 'sold'
+                                                ? 'bg-blue-100 text-blue-800 cursor-default'
+                                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                          >
+                                            {isUpdatingStatus[listing.id] ? (
+                                              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                                            ) : (
+                                              <CheckCircle className="h-4 w-4 mr-1" />
+                                            )}
+                                            <span>Marcat ca vândut</span>
+                                          </button>
+                                          
+                                          <button
+                                            onClick={() => handleUpdateListingStatus(listing.id, 'rejected')}
+                                            disabled={listing.status === 'rejected' || isUpdatingStatus[listing.id]}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-1 ${
+                                              listing.status === 'rejected'
+                                                ? 'bg-red-100 text-red-800 cursor-default'
+                                                : 'bg-red-600 text-white hover:bg-red-700'
+                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                          >
+                                            {isUpdatingStatus[listing.id] ? (
+                                              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                                            ) : (
+                                              <XCircle className="h-4 w-4 mr-1" />
+                                            )}
+                                            <span>Respinge</span>
+                                          </button>
+                                        </div>
+                                        
+                                        <div className="pt-2">
+                                          <button
+                                            onClick={() => handleDeleteListing(listing.id)}
+                                            disabled={isDeleting[listing.id]}
+                                            className="px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          >
+                                            {isDeleting[listing.id] ? (
+                                              <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin mr-1"></div>
+                                            ) : (
+                                              <Trash2 className="h-4 w-4 mr-1" />
+                                            )}
+                                            <span>Șterge Anunțul</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
             {/* Users Tab */}
-            {activeTab === 'users' && !isLoading && !error && (
+            {!isLoading && !error && activeTab === 'users' && (
               <div>
-                {/* Filters */}
-                <div className="mb-6 bg-gray-50 rounded-lg p-4">
-                  <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-                    {/* Search */}
-                    <div className="flex-1">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Caută după nume, email sau locație..."
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                        />
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                      </div>
-                    </div>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                  <h2 className="text-xl font-semibold text-gray-900">Gestionare Utilizatori</h2>
+                  
+                  <div className="relative w-full sm:w-64">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Caută utilizatori..."
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nexar-accent focus:border-transparent w-full"
+                    />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  </div>
+                </div>
+                
+                {/* Users Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Utilizator
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tip
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Înregistrat
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Acțiuni
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                            Nu s-au găsit utilizatori care să corespundă criteriilor de căutare.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredUsers.map(user => (
+                          <React.Fragment key={user.id}>
+                            <tr className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  <button
+                                    onClick={() => toggleUserExpand(user.id)}
+                                    className="mr-3 text-gray-400 hover:text-gray-600 transition-colors"
+                                  >
+                                    {expandedUser === user.id ? (
+                                      <ChevronUp className="h-5 w-5" />
+                                    ) : (
+                                      <ChevronDown className="h-5 w-5" />
+                                    )}
+                                  </button>
+                                  <div>
+                                    <div className="font-medium text-gray-900">{user.name}</div>
+                                    <div className="text-sm text-gray-500">{user.email}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  user.seller_type === 'dealer'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {user.seller_type === 'dealer' ? 'Dealer' : 'Individual'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  user.suspended
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-green-100 text-green-800'
+                                }`}>
+                                  {user.suspended ? 'Suspendat' : 'Activ'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-gray-500">
+                                  {new Date(user.created_at).toLocaleDateString('ro-RO')}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => navigate(`/profil/${user.user_id}`)}
+                                    className="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                                    title="Vezi profilul"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleUserStatus(user.user_id, !user.suspended)}
+                                    disabled={isUpdatingStatus[user.user_id]}
+                                    className={`p-1 rounded hover:bg-opacity-80 transition-colors ${
+                                      user.suspended
+                                        ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                                        : 'bg-red-100 text-red-600 hover:bg-red-200'
+                                    }`}
+                                    title={user.suspended ? 'Activează utilizatorul' : 'Suspendă utilizatorul'}
+                                  >
+                                    {isUpdatingStatus[user.user_id] ? (
+                                      <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                    ) : user.suspended ? (
+                                      <CheckCircle className="h-4 w-4" />
+                                    ) : (
+                                      <XCircle className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteUser(user.user_id)}
+                                    disabled={isDeleting[user.user_id]}
+                                    className="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors disabled:opacity-50"
+                                    title="Șterge utilizatorul"
+                                  >
+                                    {isDeleting[user.user_id] ? (
+                                      <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            
+                            {/* Expanded Row */}
+                            {expandedUser === user.id && (
+                              <tr>
+                                <td colSpan={5} className="px-6 py-4 bg-gray-50">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                      <h4 className="font-semibold text-gray-900 mb-2">Detalii Utilizator</h4>
+                                      <div className="space-y-2 text-sm">
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">ID:</span>
+                                          <span className="text-gray-900">{user.user_id}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Nume:</span>
+                                          <span className="text-gray-900">{user.name}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Email:</span>
+                                          <span className="text-gray-900">{user.email}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Telefon:</span>
+                                          <span className="text-gray-900">{user.phone || 'Nespecificat'}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Locație:</span>
+                                          <span className="text-gray-900">{user.location || 'Nespecificat'}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Tip vânzător:</span>
+                                          <span className="text-gray-900">{user.seller_type === 'dealer' ? 'Dealer' : 'Individual'}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Verificat:</span>
+                                          <span className="text-gray-900">{user.verified ? 'Da' : 'Nu'}</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                          <span className="font-medium text-gray-700 w-32">Admin:</span>
+                                          <span className="text-gray-900">{user.is_admin ? 'Da' : 'Nu'}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div>
+                                      <h4 className="font-semibold text-gray-900 mb-2">Acțiuni</h4>
+                                      <div className="space-y-3">
+                                        <button
+                                          onClick={() => handleToggleUserStatus(user.user_id, !user.suspended)}
+                                          disabled={isUpdatingStatus[user.user_id]}
+                                          className={`w-full px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center space-x-2 ${
+                                            user.suspended
+                                              ? 'bg-green-600 text-white hover:bg-green-700'
+                                              : 'bg-red-600 text-white hover:bg-red-700'
+                                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        >
+                                          {isUpdatingStatus[user.user_id] ? (
+                                            <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                                          ) : user.suspended ? (
+                                            <CheckCircle className="h-4 w-4 mr-1" />
+                                          ) : (
+                                            <XCircle className="h-4 w-4 mr-1" />
+                                          )}
+                                          <span>{user.suspended ? 'Activează Utilizatorul' : 'Suspendă Utilizatorul'}</span>
+                                        </button>
+                                        
+                                        <button
+                                          onClick={() => navigate(`/profil/${user.user_id}`)}
+                                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                                        >
+                                          <Eye className="h-4 w-4 mr-1" />
+                                          <span>Vezi Profilul</span>
+                                        </button>
+                                        
+                                        <button
+                                          onClick={() => handleDeleteUser(user.user_id)}
+                                          disabled={isDeleting[user.user_id]}
+                                          className="w-full px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {isDeleting[user.user_id] ? (
+                                            <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin mr-1"></div>
+                                          ) : (
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                          )}
+                                          <span>Șterge Utilizatorul</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
-                    {/* Seller Type Filter */}
-                    <div className="w-full md:w-48">
-                      <select
-                        value={sellerTypeFilter}
-                        onChange={(e) => setSellerTypeFilter(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                      >
-                        <option value="all">Toți utilizatorii</option>
-                        <option value="individual">Vânzători Individuali</option>
-                        <option value="dealer">Dealeri Autorizați</option>
-                      </select>
+            {/* Settings Tab */}
+            {!isLoading && !error && activeTab === 'settings' && (
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Setări Platformă</h2>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+                  <div className="flex items-start space-x-3">
+                    <AlertTriangle className="h-6 w-6 text-yellow-600 mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold text-yellow-800 mb-2">Notă Importantă</h3>
+                      <p className="text-yellow-700">
+                        Această secțiune este în curs de dezvoltare. Setările platformei vor fi disponibile în curând.
+                      </p>
                     </div>
                   </div>
                 </div>
-
-                {/* Users Table */}
-                {filteredUsers.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Nu există utilizatori</h3>
-                    <p className="text-gray-600">Nu am găsit utilizatori care să corespundă criteriilor de căutare.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-gray-900 mb-4">Setări Generale</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Numele Platformei
+                        </label>
+                        <input
+                          type="text"
+                          value="Nexar"
+                          disabled
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 cursor-not-allowed"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email Contact
+                        </label>
+                        <input
+                          type="email"
+                          value="contact@nexar.ro"
+                          disabled
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 cursor-not-allowed"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Versiune Aplicație
+                        </label>
+                        <input
+                          type="text"
+                          value="1.0.0"
+                          disabled
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Utilizator
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Email
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tip
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Data înregistrării
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Acțiuni
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredUsers.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                                  {user.avatar_url ? (
-                                    <img 
-                                      src={user.avatar_url} 
-                                      alt={user.name}
-                                      className="h-10 w-10 object-cover"
-                                      onError={(e) => {
-                                        const target = e.currentTarget as HTMLImageElement;
-                                        target.style.display = 'none';
-                                        target.parentElement!.innerHTML = user.name.charAt(0).toUpperCase();
-                                      }}
-                                    />
-                                  ) : (
-                                    <span className="text-lg font-semibold text-gray-700">
-                                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {user.name || 'Utilizator necunoscut'}
-                                    {user.is_admin && (
-                                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                                        <Shield className="h-3 w-3 mr-1" />
-                                        Admin
-                                      </span>
-                                    )}
-                                    {user.suspended && (
-                                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                                        <X className="h-3 w-3 mr-1" />
-                                        Suspendat
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-sm text-gray-500 flex items-center">
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    {user.location || 'Locație nespecificată'}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{user.email}</div>
-                              <div className="text-sm text-gray-500">{user.phone || 'Telefon nespecificat'}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {user.seller_type === 'dealer' ? (
-                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                                  Dealer
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                  Individual
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(user.created_at)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center justify-end space-x-2">
-                                <button
-                                  onClick={() => window.open(`/profil/${user.id}`, '_blank')}
-                                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                                  title="Vezi profilul"
-                                >
-                                  <Eye className="h-5 w-5" />
-                                </button>
-                                
-                                {!user.is_admin && (
-                                  <>
-                                    <button
-                                      onClick={() => handleToggleUserStatus(user.user_id, !user.suspended)}
-                                      disabled={isProcessing[user.user_id]}
-                                      className={`${
-                                        user.suspended 
-                                          ? 'text-green-600 hover:text-green-800' 
-                                          : 'text-orange-600 hover:text-orange-800'
-                                      } transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-                                      title={user.suspended ? 'Activează utilizatorul' : 'Suspendă utilizatorul'}
-                                    >
-                                      {isProcessing[user.user_id] ? (
-                                        <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                      ) : user.suspended ? (
-                                        <CheckCircle className="h-5 w-5" />
-                                      ) : (
-                                        <XCircle className="h-5 w-5" />
-                                      )}
-                                    </button>
-                                    
-                                    <button
-                                      onClick={() => handleDeleteUser(user.user_id)}
-                                      disabled={isProcessing[user.user_id]}
-                                      className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                      title="Șterge utilizatorul"
-                                    >
-                                      {isProcessing[user.user_id] ? (
-                                        <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                                      ) : (
-                                        <Trash2 className="h-5 w-5" />
-                                      )}
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-gray-900 mb-4">Statistici</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-blue-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-blue-600">{listings.length}</div>
+                        <div className="text-sm text-blue-800">Anunțuri</div>
+                      </div>
+                      
+                      <div className="bg-green-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-green-600">{users.length}</div>
+                        <div className="text-sm text-green-800">Utilizatori</div>
+                      </div>
+                      
+                      <div className="bg-purple-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {listings.filter(l => l.status === 'active').length}
+                        </div>
+                        <div className="text-sm text-purple-800">Anunțuri Active</div>
+                      </div>
+                      
+                      <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {users.filter(u => u.seller_type === 'dealer').length}
+                        </div>
+                        <div className="text-sm text-yellow-800">Dealeri</div>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
-          </div>
-        </div>
-        
-        {/* Repair Connection Button */}
-        <div className="mt-6 bg-white rounded-xl p-6 shadow-md">
-          <h3 className="text-lg font-semibold mb-4">Probleme cu încărcarea datelor?</h3>
-          <p className="text-gray-600 mb-4">
-            Dacă întâmpini probleme cu încărcarea anunțurilor sau a utilizatorilor, încearcă să repari conexiunea la Supabase.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <FixSupabaseButton buttonText="Repară Conexiunea" />
-            <button
-              onClick={() => window.location.reload()}
-              className="flex items-center justify-center space-x-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-            >
-              <RefreshCw className="h-5 w-5" />
-              <span>Reîncarcă Pagina</span>
-            </button>
-            <a
-              href="/fix-supabase"
-              target="_blank"
-              className="flex items-center justify-center space-x-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-semibold hover:bg-blue-200 transition-colors"
-            >
-              <ExternalLink className="h-5 w-5" />
-              <span>Pagina de Reparare</span>
-            </a>
           </div>
         </div>
       </div>
