@@ -283,8 +283,8 @@ const CreateListingPage = () => {
     }));
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
     if (files && imageFiles.length < 5) {
       const newImageFiles = Array.from(files).slice(0, 5 - imageFiles.length);
       

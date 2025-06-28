@@ -4,7 +4,7 @@ import {
   Users, Package, Settings, ChevronRight, Edit, Trash2, 
   CheckCircle, XCircle, Eye, AlertTriangle, Search, Filter,
   User, Building, Calendar, MapPin, ArrowUpDown, Check, X,
-  RefreshCw, Shield
+  RefreshCw, Shield, ExternalLink
 } from 'lucide-react';
 import { admin, supabase, romanianCities } from '../lib/supabase';
 import FixSupabaseButton from '../components/FixSupabaseButton';
@@ -31,13 +31,14 @@ const AdminPage = () => {
   const checkAdminStatus = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       
       // Verificăm dacă utilizatorul este admin
       const isAdminUser = await admin.isAdmin();
       
       if (!isAdminUser) {
-        // Dacă nu este admin, redirecționăm la pagina principală
-        navigate('/');
+        console.error('User is not admin');
+        setIsAdmin(false);
         return;
       }
       
@@ -52,7 +53,6 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Error checking admin status:', error);
       setError('A apărut o eroare la verificarea statusului de administrator');
-      navigate('/');
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +73,7 @@ const AdminPage = () => {
       setIsLoading(true);
       setError(null);
       
+      // Folosim getAllListings din admin pentru a obține toate anunțurile
       const { data, error } = await admin.getAllListings();
       
       if (error) {
@@ -81,7 +82,14 @@ const AdminPage = () => {
         return;
       }
       
-      setListings(data || []);
+      if (!data) {
+        console.error('No listings data returned');
+        setError('Nu s-au găsit anunțuri');
+        return;
+      }
+      
+      console.log(`Loaded ${data.length} listings`);
+      setListings(data);
     } catch (err) {
       console.error('Error in loadListings:', err);
       setError('A apărut o eroare la încărcarea anunțurilor');
@@ -103,7 +111,14 @@ const AdminPage = () => {
         return;
       }
       
-      setUsers(data || []);
+      if (!data) {
+        console.error('No users data returned');
+        setError('Nu s-au găsit utilizatori');
+        return;
+      }
+      
+      console.log(`Loaded ${data.length} users`);
+      setUsers(data);
     } catch (err) {
       console.error('Error in loadUsers:', err);
       setError('A apărut o eroare la încărcarea utilizatorilor');
@@ -163,6 +178,34 @@ const AdminPage = () => {
       alert('A apărut o eroare la ștergerea anunțului');
     } finally {
       setIsProcessing(prev => ({ ...prev, [listingId]: false }));
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: string, suspended: boolean) => {
+    try {
+      setIsProcessing(prev => ({ ...prev, [userId]: true }));
+      
+      const { error } = await admin.toggleUserStatus(userId, suspended);
+      
+      if (error) {
+        console.error('Error toggling user status:', error);
+        alert(`Eroare la ${suspended ? 'suspendarea' : 'activarea'} utilizatorului: ${error.message}`);
+        return;
+      }
+      
+      // Actualizăm lista de utilizatori
+      setUsers(prev => 
+        prev.map(user => 
+          user.user_id === userId ? { ...user, suspended } : user
+        )
+      );
+      
+      alert(`Utilizatorul a fost ${suspended ? 'suspendat' : 'activat'} cu succes!`);
+    } catch (err) {
+      console.error('Error in handleToggleUserStatus:', err);
+      alert('A apărut o eroare la modificarea statusului utilizatorului');
+    } finally {
+      setIsProcessing(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -229,9 +272,9 @@ const AdminPage = () => {
     // Filtrare după text
     const matchesSearch = 
       searchQuery === '' || 
-      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.seller_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.location.toLowerCase().includes(searchQuery.toLowerCase());
+      listing.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.seller_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.location?.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Filtrare după status
     const matchesStatus = statusFilter === 'all' || listing.status === statusFilter;
@@ -255,21 +298,28 @@ const AdminPage = () => {
   // Filtrare pentru utilizatori
   const filteredUsers = users.filter(user => 
     searchQuery === '' || 
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.location?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Funcție pentru a formata data
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ro-RO', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'Dată necunoscută';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ro-RO', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Dată invalidă';
+    }
   };
 
   // Funcție pentru a obține clasa de culoare pentru status
@@ -300,7 +350,7 @@ const AdminPage = () => {
       case 'rejected':
         return 'Respins';
       default:
-        return status;
+        return status || 'Necunoscut';
     }
   };
 
@@ -516,7 +566,7 @@ const AdminPage = () => {
                                   </div>
                                   <div className="text-sm text-gray-500 flex items-center">
                                     <MapPin className="h-3 w-3 mr-1" />
-                                    {listing.location}
+                                    {listing.location || 'Locație necunoscută'}
                                   </div>
                                 </div>
                               </div>
@@ -537,7 +587,7 @@ const AdminPage = () => {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-bold text-gray-900">€{listing.price.toLocaleString()}</div>
+                              <div className="text-sm font-bold text-gray-900">€{listing.price ? listing.price.toLocaleString() : '0'}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColorClass(listing.status)}`}>
@@ -579,7 +629,7 @@ const AdminPage = () => {
                                 {/* Status Update Dropdown */}
                                 <div className="relative inline-block text-left">
                                   <select
-                                    value={listing.status}
+                                    value={listing.status || 'active'}
                                     onChange={(e) => handleUpdateListingStatus(listing.id, e.target.value)}
                                     disabled={isProcessing[listing.id]}
                                     className="border border-gray-300 rounded-md text-sm py-1 pl-2 pr-8 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-nexar-accent focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
@@ -684,17 +734,23 @@ const AdminPage = () => {
                                     />
                                   ) : (
                                     <span className="text-lg font-semibold text-gray-700">
-                                      {user.name.charAt(0).toUpperCase()}
+                                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                                     </span>
                                   )}
                                 </div>
                                 <div className="ml-4">
                                   <div className="text-sm font-medium text-gray-900">
-                                    {user.name}
+                                    {user.name || 'Utilizator necunoscut'}
                                     {user.is_admin && (
                                       <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
                                         <Shield className="h-3 w-3 mr-1" />
                                         Admin
+                                      </span>
+                                    )}
+                                    {user.suspended && (
+                                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                        <X className="h-3 w-3 mr-1" />
+                                        Suspendat
                                       </span>
                                     )}
                                   </div>
@@ -726,7 +782,7 @@ const AdminPage = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end space-x-2">
                                 <button
-                                  onClick={() => navigate(`/profil/${user.id}`)}
+                                  onClick={() => window.open(`/profil/${user.id}`, '_blank')}
                                   className="text-gray-600 hover:text-gray-900 transition-colors"
                                   title="Vezi profilul"
                                 >
@@ -734,18 +790,39 @@ const AdminPage = () => {
                                 </button>
                                 
                                 {!user.is_admin && (
-                                  <button
-                                    onClick={() => handleDeleteUser(user.user_id)}
-                                    disabled={isProcessing[user.user_id]}
-                                    className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Șterge utilizatorul"
-                                  >
-                                    {isProcessing[user.user_id] ? (
-                                      <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                      <Trash2 className="h-5 w-5" />
-                                    )}
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleToggleUserStatus(user.user_id, !user.suspended)}
+                                      disabled={isProcessing[user.user_id]}
+                                      className={`${
+                                        user.suspended 
+                                          ? 'text-green-600 hover:text-green-800' 
+                                          : 'text-orange-600 hover:text-orange-800'
+                                      } transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                                      title={user.suspended ? 'Activează utilizatorul' : 'Suspendă utilizatorul'}
+                                    >
+                                      {isProcessing[user.user_id] ? (
+                                        <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                      ) : user.suspended ? (
+                                        <CheckCircle className="h-5 w-5" />
+                                      ) : (
+                                        <XCircle className="h-5 w-5" />
+                                      )}
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => handleDeleteUser(user.user_id)}
+                                      disabled={isProcessing[user.user_id]}
+                                      className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Șterge utilizatorul"
+                                    >
+                                      {isProcessing[user.user_id] ? (
+                                        <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                      ) : (
+                                        <Trash2 className="h-5 w-5" />
+                                      )}
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </td>
@@ -757,6 +834,32 @@ const AdminPage = () => {
                 )}
               </div>
             )}
+          </div>
+        </div>
+        
+        {/* Repair Connection Button */}
+        <div className="mt-6 bg-white rounded-xl p-6 shadow-md">
+          <h3 className="text-lg font-semibold mb-4">Probleme cu încărcarea datelor?</h3>
+          <p className="text-gray-600 mb-4">
+            Dacă întâmpini probleme cu încărcarea anunțurilor sau a utilizatorilor, încearcă să repari conexiunea la Supabase.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <FixSupabaseButton buttonText="Repară Conexiunea" />
+            <button
+              onClick={() => window.location.reload()}
+              className="flex items-center justify-center space-x-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+            >
+              <RefreshCw className="h-5 w-5" />
+              <span>Reîncarcă Pagina</span>
+            </button>
+            <a
+              href="/fix-supabase"
+              target="_blank"
+              className="flex items-center justify-center space-x-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-semibold hover:bg-blue-200 transition-colors"
+            >
+              <ExternalLink className="h-5 w-5" />
+              <span>Pagina de Reparare</span>
+            </a>
           </div>
         </div>
       </div>

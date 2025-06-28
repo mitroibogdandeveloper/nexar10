@@ -37,6 +37,7 @@ export interface Listing {
   featured: boolean
   created_at: string
   updated_at: string
+  status: string
 }
 
 export interface User {
@@ -48,6 +49,7 @@ export interface User {
   avatar_url?: string
   verified: boolean
   created_at: string
+  suspended?: boolean
 }
 
 // Lista orașelor din România - actualizată cu sectoarele Bucureștiului
@@ -602,7 +604,7 @@ export const listings = {
             console.log(`✅ Removed image from storage: ${filePath}`)
           } catch (removeError) {
             console.error('⚠️ Error removing image from storage:', removeError)
-            // Continuăm procesul chiar dacă ștergerea din storage eșuează
+            // Continuăm cu procesul chiar dacă ștergerea din storage eșuează
           }
         }
       }
@@ -916,6 +918,19 @@ export const admin = {
       // VERIFICARE SIMPLĂ: Dacă email-ul este admin@nexar.ro, este admin
       if (user.email === 'admin@nexar.ro') {
         console.log('✅ User is admin based on email')
+        
+        // Actualizăm localStorage pentru a marca utilizatorul ca admin
+        try {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const userData = JSON.parse(userStr);
+            userData.isAdmin = true;
+            localStorage.setItem('user', JSON.stringify(userData));
+          }
+        } catch (e) {
+          console.error('Error updating localStorage:', e);
+        }
+        
         return true
       }
       
@@ -929,6 +944,19 @@ export const admin = {
         
         if (!profileError && profile) {
           console.log('✅ Profile found, is_admin:', profile.is_admin)
+          
+          // Actualizăm localStorage pentru a marca utilizatorul ca admin
+          try {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              const userData = JSON.parse(userStr);
+              userData.isAdmin = profile.is_admin;
+              localStorage.setItem('user', JSON.stringify(userData));
+            }
+          } catch (e) {
+            console.error('Error updating localStorage:', e);
+          }
+          
           return profile.is_admin || false
         } else {
           console.log('⚠️ Profile not found or error:', profileError)
@@ -972,7 +1000,7 @@ export const admin = {
       console.log(`✅ Successfully fetched ${data?.length || 0} listings for admin`)
       return { data, error: null }
     } catch (err) {
-      console.error('💥 Error in listings.getAllForAdmin:', err)
+      console.error('💥 Error in admin.getAllListings:', err)
       return { data: null, error: err }
     }
   },
@@ -1122,7 +1150,7 @@ export const admin = {
         return { error: deleteError }
       }
       
-      // 4. Ștergem utilizatorul din auth
+      // 4. Încercăm să ștergem utilizatorul din auth
       // Notă: Această operațiune necesită drepturi de admin în Supabase
       // și nu va funcționa cu cheia anonimă
       try {
