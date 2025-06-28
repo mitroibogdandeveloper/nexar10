@@ -19,6 +19,7 @@ import {
 	Building,
 	ChevronLeft,
 	ChevronRight,
+	RefreshCw,
 } from "lucide-react";
 import { listings, romanianCities } from "../lib/supabase";
 import FixSupabaseButton from "../components/FixSupabaseButton";
@@ -41,28 +42,12 @@ const HomePage = () => {
 	const [allListings, setAllListings] = useState<any[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 	const navigate = useNavigate();
 	const itemsPerPage = 6; // Show 6 listings per page
 
 	// Load real listings from Supabase
 	useEffect(() => {
-		// Set a timeout to show an error message if loading takes too long
-		const timeout = setTimeout(() => {
-			if (isLoading) {
-				console.warn('Loading timeout reached in HomePage');
-				setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
-				setIsLoading(false);
-			}
-		}, 15000); // 15 seconds timeout
-		
-		setLoadingTimeout(timeout);
-		
 		loadListings();
-		
-		return () => {
-			if (loadingTimeout) clearTimeout(loadingTimeout);
-		};
 	}, [filters, searchQuery, currentPage]);
 	
 	// Update filters when URL params change
@@ -114,10 +99,6 @@ const HomePage = () => {
 			setError("A apărut o eroare la încărcarea anunțurilor");
 		} finally {
 			setIsLoading(false);
-			if (loadingTimeout) {
-				clearTimeout(loadingTimeout);
-				setLoadingTimeout(null);
-			}
 		}
 	};
 
@@ -956,9 +937,10 @@ const HomePage = () => {
 									<div className="flex flex-col sm:flex-row gap-4 justify-center">
 										<button
 											onClick={loadListings}
-											className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+											className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors flex items-center justify-center space-x-2"
 										>
-											Încearcă din nou
+											<RefreshCw className="h-5 w-5" />
+											<span>Încearcă din nou</span>
 										</button>
 										<FixSupabaseButton buttonText="Repară Conexiunea" />
 									</div>
@@ -1029,9 +1011,10 @@ const HomePage = () => {
 								<div className="flex flex-col gap-3">
 									<button
 										onClick={loadListings}
-										className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+										className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors flex items-center justify-center space-x-2"
 									>
-										Încearcă din nou
+										<RefreshCw className="h-5 w-5" />
+										<span>Încearcă din nou</span>
 									</button>
 									<FixSupabaseButton buttonText="Repară Conexiunea" />
 								</div>

@@ -28,7 +28,6 @@ const ListingsPage = () => {
   const [allListings, setAllListings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const itemsPerPage = 10;
   const navigate = useNavigate();
 
@@ -45,23 +44,7 @@ const ListingsPage = () => {
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
-    
-    // Set a timeout to show an error message if loading takes too long
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('Loading timeout reached in ListingsPage');
-        setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
-        setIsLoading(false);
-      }
-    }, 15000); // 15 seconds timeout
-    
-    setLoadingTimeout(timeout);
-    
     loadListings();
-    
-    return () => {
-      if (loadingTimeout) clearTimeout(loadingTimeout);
-    };
   }, []);
 
   // Load real listings from Supabase
@@ -111,10 +94,6 @@ const ListingsPage = () => {
       
       setAllListings(formattedListings);
       
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        setLoadingTimeout(null);
-      }
     } catch (err) {
       console.error('💥 Error in loadListings:', err);
       setError('A apărut o eroare la încărcarea anunțurilor');

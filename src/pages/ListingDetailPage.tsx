@@ -39,31 +39,15 @@ const ListingDetailPage = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [isFavorite, setIsFavorite] = useState(false);
 	const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
-	const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 
 	// Scroll to top when component mounts
 	useEffect(() => {
 		window.scrollTo(0, 0);
 
-		// Set a timeout to show an error message if loading takes too long
-		const timeout = setTimeout(() => {
-			if (isLoading) {
-				console.warn('Loading timeout reached in ListingDetailPage');
-				setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
-				setIsLoading(false);
-			}
-		}, 15000); // 15 seconds timeout
-		
-		setLoadingTimeout(timeout);
-
 		if (id) {
 			loadListing(id);
 			checkIfFavorite(id);
 		}
-		
-		return () => {
-			if (loadingTimeout) clearTimeout(loadingTimeout);
-		};
 	}, [id]);
 
 	const loadListing = async (listingId: string) => {
@@ -144,11 +128,6 @@ const ListingDetailPage = () => {
 			};
 
 			setListing(formattedListing);
-			
-			if (loadingTimeout) {
-				clearTimeout(loadingTimeout);
-				setLoadingTimeout(null);
-			}
 		} catch (err) {
 			console.error("💥 Error in loadListing:", err);
 			setError("A apărut o eroare la încărcarea anunțului");

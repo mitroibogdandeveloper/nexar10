@@ -32,7 +32,7 @@ function ScrollToTop() {
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ScrollToTop />
       <div className="min-h-screen bg-nexar-light flex flex-col">
         <Header />
