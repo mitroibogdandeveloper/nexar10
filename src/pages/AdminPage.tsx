@@ -194,34 +194,6 @@ const AdminPage = () => {
     }
   };
 
-  const handleToggleUserStatus = async (userId: string, suspended: boolean) => {
-    try {
-      setIsProcessing(prev => ({ ...prev, [userId]: true }));
-      
-      const { error } = await admin.toggleUserStatus(userId, suspended);
-      
-      if (error) {
-        console.error('Error toggling user status:', error);
-        alert(`Eroare la actualizarea statusului utilizatorului: ${error.message}`);
-        return;
-      }
-      
-      // Actualizăm lista de utilizatori
-      setUsers(prev => 
-        prev.map(user => 
-          user.user_id === userId ? { ...user, suspended } : user
-        )
-      );
-      
-      alert(`Utilizatorul a fost ${suspended ? 'suspendat' : 'activat'} cu succes!`);
-    } catch (err) {
-      console.error('Error in handleToggleUserStatus:', err);
-      alert('A apărut o eroare la actualizarea statusului utilizatorului');
-    } finally {
-      setIsProcessing(prev => ({ ...prev, [userId]: false }));
-    }
-  };
-
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('ATENȚIE: Această acțiune va șterge utilizatorul și toate anunțurile sale. Ești sigur că vrei să continui?')) return;
     
@@ -711,9 +683,6 @@ const AdminPage = () => {
                             Tip
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Data înregistrării
                           </th>
                           <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -776,17 +745,6 @@ const AdminPage = () => {
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {user.suspended ? (
-                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                  Suspendat
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                  Activ
-                                </span>
-                              )}
-                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {formatDate(user.created_at)}
                             </td>
@@ -801,39 +759,18 @@ const AdminPage = () => {
                                 </button>
                                 
                                 {!user.is_admin && (
-                                  <>
-                                    <button
-                                      onClick={() => handleToggleUserStatus(user.user_id, !user.suspended)}
-                                      disabled={isProcessing[user.user_id]}
-                                      className={`${
-                                        user.suspended 
-                                          ? 'text-green-600 hover:text-green-800' 
-                                          : 'text-yellow-600 hover:text-yellow-800'
-                                      } transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-                                      title={user.suspended ? 'Activează utilizatorul' : 'Suspendă utilizatorul'}
-                                    >
-                                      {isProcessing[user.user_id] ? (
-                                        <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                      ) : user.suspended ? (
-                                        <Check className="h-5 w-5" />
-                                      ) : (
-                                        <X className="h-5 w-5" />
-                                      )}
-                                    </button>
-                                    
-                                    <button
-                                      onClick={() => handleDeleteUser(user.user_id)}
-                                      disabled={isProcessing[user.user_id]}
-                                      className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                      title="Șterge utilizatorul"
-                                    >
-                                      {isProcessing[user.user_id] ? (
-                                        <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                                      ) : (
-                                        <Trash2 className="h-5 w-5" />
-                                      )}
-                                    </button>
-                                  </>
+                                  <button
+                                    onClick={() => handleDeleteUser(user.user_id)}
+                                    disabled={isProcessing[user.user_id]}
+                                    className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Șterge utilizatorul"
+                                  >
+                                    {isProcessing[user.user_id] ? (
+                                      <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                      <Trash2 className="h-5 w-5" />
+                                    )}
+                                  </button>
                                 )}
                               </div>
                             </td>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   User, Mail, Phone, MapPin, Edit, Camera, 
   Package, Eye, MessageCircle, 
   ChevronRight, Calendar, Shield, Building, 
-  Lock, AlertTriangle, CheckCircle, X, ChevronDown
+  Lock, AlertTriangle, CheckCircle, X, ChevronDown, RefreshCw
 } from 'lucide-react';
 import { supabase, auth, profiles, romanianCities } from '../lib/supabase';
+import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const ProfilePage = () => {
   const { id } = useParams();
@@ -97,6 +98,10 @@ const ProfilePage = () => {
       setError('A apărut o eroare la încărcarea profilului');
     } finally {
       setIsLoading(false);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     }
   };
 
@@ -204,10 +209,10 @@ const ProfilePage = () => {
       // Actualizăm profilul
       const { data, error } = await profiles.update(profile.user_id, {
         name: editedProfile.name.trim(),
-        phone: editedProfile.phone.trim(),
-        location: editedProfile.location.trim(),
-        description: editedProfile.description?.trim(),
-        website: editedProfile.website?.trim()
+        phone: editedProfile.phone?.trim() || '',
+        location: editedProfile.location?.trim() || '',
+        description: editedProfile.description?.trim() || '',
+        website: editedProfile.website?.trim() || ''
       });
       
       if (error) {
@@ -369,6 +374,10 @@ const ProfilePage = () => {
     }
   };
 
+  const handleViewListing = (listingId: string) => {
+    window.open(`/anunt/${listingId}`, '_blank');
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -393,12 +402,15 @@ const ProfilePage = () => {
           <p className="text-gray-600 mb-6">
             {error || 'Profilul căutat nu există sau a fost șters.'}
           </p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
-          >
-            Înapoi la pagina principală
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+            >
+              Înapoi la pagina principală
+            </button>
+            <FixSupabaseButton buttonText="Repară Conexiunea" />
+          </div>
         </div>
       </div>
     );
@@ -424,6 +436,10 @@ const ProfilePage = () => {
                         src={avatarPreview || profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=random`}
                         alt={profile.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=random`;
+                        }}
                       />
                     </div>
                     
@@ -515,44 +531,38 @@ const ProfilePage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Locația
                       </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={editedProfile.location || ''}
-                          onChange={(e) => handleLocationChange(e.target.value)}
-                          onFocus={() => {
-                            if (editedProfile.location?.length > 0) {
-                              const filtered = romanianCities.filter(city =>
-                                city.toLowerCase().includes(editedProfile.location.toLowerCase())
-                              ).slice(0, 10);
-                              setFilteredCities(filtered);
-                              setShowLocationDropdown(true);
-                            }
-                          }}
-                          onBlur={() => {
-                            // Delay pentru a permite click-ul pe opțiuni
-                            setTimeout(() => setShowLocationDropdown(false), 200);
-                          }}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent pr-10"
-                        />
-                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        
-                        {/* Dropdown cu orașe */}
-                        {showLocationDropdown && filteredCities.length > 0 && (
-                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                            {filteredCities.map((city, index) => (
-                              <button
-                                key={index}
-                                type="button"
-                                onClick={() => selectCity(city)}
-                                className="w-full text-left px-4 py-2 hover:bg-nexar-accent hover:text-white transition-colors text-sm border-b border-gray-100 last:border-b-0"
-                              >
-                                {city}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <select
+                        value={editedProfile.location || ''}
+                        onChange={(e) => handleInputChange('location', e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                      >
+                        <option value="">Selectează orașul</option>
+                        <option value="București S1">București S1</option>
+                        <option value="București S2">București S2</option>
+                        <option value="București S3">București S3</option>
+                        <option value="București S4">București S4</option>
+                        <option value="București S5">București S5</option>
+                        <option value="București S6">București S6</option>
+                        <option value="Cluj-Napoca">Cluj-Napoca</option>
+                        <option value="Timișoara">Timișoara</option>
+                        <option value="Iași">Iași</option>
+                        <option value="Constanța">Constanța</option>
+                        <option value="Brașov">Brașov</option>
+                        <option value="Craiova">Craiova</option>
+                        <option value="Galați">Galați</option>
+                        <option value="Oradea">Oradea</option>
+                        <option value="Ploiești">Ploiești</option>
+                        <option value="Sibiu">Sibiu</option>
+                        <option value="Bacău">Bacău</option>
+                        <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
+                        {romanianCities.map(city => (
+                          !city.startsWith("București") && 
+                          city !== "Râmnicu Vâlcea" && 
+                          city !== "Rm. Vâlcea" && (
+                            <option key={city} value={city}>{city}</option>
+                          )
+                        ))}
+                      </select>
                     </div>
                     
                     <div>
@@ -762,6 +772,15 @@ const ProfilePage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Fix Connection Button */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Probleme cu încărcarea?</h3>
+              <p className="text-gray-600 mb-4 text-sm">
+                Dacă întâmpini probleme cu încărcarea anunțurilor sau a profilului, încearcă să repari conexiunea.
+              </p>
+              <FixSupabaseButton buttonText="Repară Conexiunea" />
+            </div>
           </div>
 
           {/* Main Content */}
@@ -818,6 +837,10 @@ const ProfilePage = () => {
                                 src={listing.images && listing.images[0] ? listing.images[0] : "https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg"}
                                 alt={listing.title}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.src = "https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg";
+                                }}
                               />
                               <div className="absolute top-2 left-2">
                                 <span className="bg-nexar-accent text-white px-2 py-1 rounded-full text-xs font-semibold">
@@ -858,7 +881,7 @@ const ProfilePage = () => {
                               {isCurrentUser && (
                                 <div className="flex space-x-2">
                                   <button
-                                    onClick={() => navigate(`/anunt/${listing.id}`)}
+                                    onClick={() => handleViewListing(listing.id)}
                                     className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center space-x-1"
                                   >
                                     <Eye className="h-4 w-4" />
