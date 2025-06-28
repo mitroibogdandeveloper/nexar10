@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { X, Plus, Check, AlertTriangle, Camera, ArrowLeft, ChevronDown, Trash2 } from 'lucide-react';
-import { listings, isAuthenticated, supabase, romanianCities } from '../lib/supabase';
+import { listings, isAuthenticated, supabase, romanianCities, admin } from '../lib/supabase';
 import SuccessModal from '../components/SuccessModal';
 
 const EditListingPage = () => {
@@ -18,6 +18,7 @@ const EditListingPage = () => {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [filteredCities, setFilteredCities] = useState<string[]>([]);
   const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -78,6 +79,10 @@ const EditListingPage = () => {
     try {
       setIsLoading(true);
       
+      // Verificăm dacă utilizatorul este admin
+      const isAdminUser = await admin.isAdmin();
+      setIsAdmin(isAdminUser);
+      
       const isLoggedIn = await isAuthenticated();
       if (!isLoggedIn) {
         navigate('/auth');
@@ -101,18 +106,20 @@ const EditListingPage = () => {
         return;
       }
 
-      // Verifică proprietatea
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
+      // Verifică proprietatea doar dacă utilizatorul nu este admin
+      if (!isAdminUser) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user?.id)
+          .single();
 
-      if (!profile || profile.id !== listingData.seller_id) {
-        alert('Nu poți edita acest anunț');
-        navigate('/profil');
-        return;
+        if (!profile || profile.id !== listingData.seller_id) {
+          alert('Nu poți edita acest anunț');
+          navigate('/profil');
+          return;
+        }
       }
 
       setOriginalListing(listingData);
@@ -140,8 +147,8 @@ const EditListingPage = () => {
         transmission: mappedTransmission,
         color: listingData.color || '',
         features: listingData.features || [],
-        phone: profile.phone || '',
-        email: profile.email || ''
+        phone: '',
+        email: ''
       });
 
     } catch (err) {
@@ -149,6 +156,10 @@ const EditListingPage = () => {
       navigate('/profil');
     } finally {
       setIsLoading(false);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     }
   };
 
@@ -265,8 +276,8 @@ const EditListingPage = () => {
     setFilteredCities([]);
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
     if (files && (images.length + newImageFiles.length) < 5) {
       const newFiles = Array.from(files).slice(0, 5 - images.length - newImageFiles.length);
       
