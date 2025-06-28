@@ -15,7 +15,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import CookiesPage from './pages/CookiesPage';
 import FixSupabasePage from './pages/FixSupabasePage';
 import AboutPage from './pages/AboutPage';
-import ContactPage from './pages/ContactPage';
+import ContactPage from './pages/ContactPage.tsx';
 import AuthConfirmPage from './pages/AuthConfirmPage';
 import PasswordResetPage from './pages/PasswordResetPage';
 
