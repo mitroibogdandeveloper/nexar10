@@ -15,7 +15,6 @@ const CreateListingPage = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdListingId, setCreatedListingId] = useState<string | null>(null);
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -40,22 +39,7 @@ const CreateListingPage = () => {
 
   // Check if user is logged in and load profile
   useEffect(() => {
-    // Set a timeout to show an error message if loading takes too long
-    const timeout = setTimeout(() => {
-      if (isLoadingProfile) {
-        console.warn('Loading timeout reached in CreateListingPage');
-        setErrors({ profile: 'Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.' });
-        setIsLoadingProfile(false);
-      }
-    }, 15000); // 15 seconds timeout
-    
-    setLoadingTimeout(timeout);
-    
     checkAuthAndLoadProfile();
-    
-    return () => {
-      if (loadingTimeout) clearTimeout(loadingTimeout);
-    };
   }, []);
 
   const checkAuthAndLoadProfile = async () => {
@@ -105,10 +89,6 @@ const CreateListingPage = () => {
       navigate('/auth');
     } finally {
       setIsLoadingProfile(false);
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        setLoadingTimeout(null);
-      }
     }
   };
 

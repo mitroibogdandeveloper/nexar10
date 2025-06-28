@@ -720,6 +720,8 @@ export const listings = {
             await supabase.storage
               .from('listing-images')
               .remove([filePath])
+              
+            console.log(`✅ Removed image from storage: ${filePath}`)
           } catch (error) {
             console.error('Error removing image:', error)
             // Continuăm cu ștergerea anunțului chiar dacă ștergerea imaginilor eșuează

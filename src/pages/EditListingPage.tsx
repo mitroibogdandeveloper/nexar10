@@ -18,7 +18,6 @@ const EditListingPage = () => {
   const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [filteredCities, setFilteredCities] = useState<string[]>([]);
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -58,22 +57,7 @@ const EditListingPage = () => {
   ];
 
   useEffect(() => {
-    // Set a timeout to show an error message if loading takes too long
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('Loading timeout reached in EditListingPage');
-        setErrors({ general: 'Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.' });
-        setIsLoading(false);
-      }
-    }, 15000); // 15 seconds timeout
-    
-    setLoadingTimeout(timeout);
-    
     loadListing();
-    
-    return () => {
-      if (loadingTimeout) clearTimeout(loadingTimeout);
-    };
   }, [id]);
 
   const loadListing = async () => {
@@ -157,10 +141,6 @@ const EditListingPage = () => {
       navigate('/profil');
     } finally {
       setIsLoading(false);
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        setLoadingTimeout(null);
-      }
     }
   };
 
