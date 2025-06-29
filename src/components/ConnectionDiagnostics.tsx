@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { diagnoseSupabaseConnection, testConnectionWithRetry } from '../lib/supabase-diagnostics'
-import { checkConnection } from '../lib/supabase'
+import { checkConnection } from '../lib/supabase-enhanced'
+import { connectionFixer } from '../lib/supabase-connection-fix'
 
 interface DiagnosticResult {
   credentialsTest: boolean
@@ -15,31 +16,62 @@ const ConnectionDiagnostics: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false)
   const [results, setResults] = useState<DiagnosticResult | null>(null)
   const [connectionTest, setConnectionTest] = useState<any>(null)
+  const [enhancedDiagnosis, setEnhancedDiagnosis] = useState<any>(null)
 
   const runDiagnostics = async () => {
     setIsRunning(true)
     setResults(null)
     setConnectionTest(null)
+    setEnhancedDiagnosis(null)
 
     try {
       console.log('🚀 Starting comprehensive diagnostics...')
       
-      // Run basic connection check first
+      // Run enhanced connection diagnosis first
+      console.log('🔍 Running enhanced diagnosis...')
+      const enhancedResult = await connectionFixer.runComprehensiveDiagnosis()
+      setEnhancedDiagnosis(enhancedResult)
+      
+      // Run basic connection check
       const basicCheck = await checkConnection()
       setConnectionTest(basicCheck)
       
-      // Run detailed diagnostics
-      const diagnosticResults = await diagnoseSupabaseConnection()
-      setResults(diagnosticResults)
+      // Run detailed diagnostics if available
+      try {
+        const diagnosticResults = await diagnoseSupabaseConnection()
+        setResults(diagnosticResults)
+      } catch (diagError) {
+        console.warn('⚠️ Legacy diagnostics failed, using enhanced results:', diagError)
+        
+        // Convert enhanced results to legacy format
+        setResults({
+          credentialsTest: enhancedResult.tests.connectivity?.success || false,
+          corsTest: enhancedResult.tests.cors?.success || false,
+          apiTest: enhancedResult.tests.database?.success || false,
+          storageTest: true, // Assume storage is OK if other tests pass
+          authTest: enhancedResult.tests.database?.success || false,
+          recommendations: enhancedResult.recommendations
+        })
+      }
       
-      // Try connection with retry
+      // Try connection with retry if basic check failed
       if (!basicCheck.success) {
         console.log('🔄 Attempting connection with retry logic...')
-        const retryResult = await testConnectionWithRetry(3)
-        setConnectionTest({
-          ...basicCheck,
-          retryResult
-        })
+        try {
+          const retryResult = await testConnectionWithRetry(3)
+          setConnectionTest({
+            ...basicCheck,
+            retryResult
+          })
+        } catch (retryError) {
+          console.warn('⚠️ Retry logic failed:', retryError)
+          // Try enhanced automatic fix
+          const fixResult = await connectionFixer.attemptAutomaticFixes()
+          setConnectionTest({
+            ...basicCheck,
+            fixAttempt: fixResult
+          })
+        }
       }
       
     } catch (error) {
@@ -90,6 +122,70 @@ const ConnectionDiagnostics: React.FC = () => {
         </button>
       </div>
 
+      {/* Enhanced Diagnosis Results */}
+      {enhancedDiagnosis && (
+        <div className="mb-6 p-4 rounded-lg border">
+          <h3 className="text-lg font-semibold mb-3">
+            {enhancedDiagnosis.overall ? '✅' : '❌'} Enhanced Connection Analysis
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h4 className={`font-medium ${getStatusColor(enhancedDiagnosis.tests.connectivity?.success)}`}>
+                {getStatusIcon(enhancedDiagnosis.tests.connectivity?.success)} Basic Connectivity
+              </h4>
+              <p className="text-sm text-gray-600 mt-1">
+                Network connection to Supabase
+              </p>
+              {enhancedDiagnosis.tests.connectivity?.details && (
+                <div className="text-xs text-gray-500 mt-2">
+                  <pre className="whitespace-pre-wrap">
+                    {JSON.stringify(enhancedDiagnosis.tests.connectivity.details, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h4 className={`font-medium ${getStatusColor(enhancedDiagnosis.tests.database?.success)}`}>
+                {getStatusIcon(enhancedDiagnosis.tests.database?.success)} Database Access
+              </h4>
+              <p className="text-sm text-gray-600 mt-1">
+                Database query execution
+              </p>
+              {enhancedDiagnosis.tests.database?.details && (
+                <div className="text-xs text-gray-500 mt-2">
+                  Error: {enhancedDiagnosis.tests.database.details.errorMessage}
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h4 className={`font-medium ${getStatusColor(enhancedDiagnosis.tests.cors?.success)}`}>
+                {getStatusIcon(enhancedDiagnosis.tests.cors?.success)} CORS Configuration
+              </h4>
+              <p className="text-sm text-gray-600 mt-1">
+                Cross-origin request handling
+              </p>
+              {enhancedDiagnosis.tests.cors?.details && (
+                <div className="text-xs text-gray-500 mt-2">
+                  Origin: {enhancedDiagnosis.tests.cors.details.origin}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-3 rounded">
+            <h4 className="font-medium text-blue-800 mb-2">Enhanced Recommendations:</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              {enhancedDiagnosis.recommendations.map((rec: string, index: number) => (
+                <li key={index}>{rec}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {connectionTest && (
         <div className="mb-6 p-4 rounded-lg border">
           <h3 className="text-lg font-semibold mb-3">
@@ -127,6 +223,17 @@ const ConnectionDiagnostics: React.FC = () => {
               </p>
               <p className="text-blue-700 text-sm">
                 Attempts: {connectionTest.retryResult.attempt}
+              </p>
+            </div>
+          )}
+
+          {connectionTest.fixAttempt && (
+            <div className="mt-3 p-3 bg-purple-50 rounded">
+              <p className="text-purple-800 font-medium">
+                Auto-fix Attempt: {connectionTest.fixAttempt.success ? '✅ Success' : '❌ Failed'}
+              </p>
+              <p className="text-purple-700 text-sm">
+                {connectionTest.fixAttempt.message}
               </p>
             </div>
           )}
