@@ -1002,7 +1002,7 @@ export const admin = {
       console.log(`✅ Successfully fetched ${data?.length || 0} listings for admin`)
       return { data, error: null }
     } catch (err) {
-      console.error('💥 Error in admin.getAllListings:', err)
+      console.error('💥 Error in listings.getAllForAdmin:', err)
       return { data: null, error: err }
     }
   },
@@ -1130,7 +1130,41 @@ export const admin = {
         return { error: profileError || new Error('User profile not found') }
       }
       
-      // 2. Ștergem toate anunțurile utilizatorului
+      // 2. Obținem toate anunțurile utilizatorului pentru a șterge imaginile
+      const { data: userListings } = await supabase
+        .from('listings')
+        .select('id, images')
+        .eq('seller_id', profile.id)
+      
+      // 3. Ștergem imaginile din storage pentru fiecare anunț
+      if (userListings && userListings.length > 0) {
+        console.log(`Found ${userListings.length} listings to delete for user ${userId}`)
+        
+        for (const listing of userListings) {
+          if (listing.images && listing.images.length > 0) {
+            for (const imageUrl of listing.images) {
+              try {
+                // Extragem path-ul din URL
+                const urlParts = imageUrl.split('/')
+                const fileName = urlParts[urlParts.length - 1]
+                const sellerFolder = urlParts[urlParts.length - 2]
+                const filePath = `${sellerFolder}/${fileName}`
+                
+                await supabase.storage
+                  .from('listing-images')
+                  .remove([filePath])
+                
+                console.log(`Removed image from storage: ${filePath}`)
+              } catch (error) {
+                console.error('Error removing image:', error)
+                // Continuăm cu ștergerea chiar dacă ștergerea imaginilor eșuează
+              }
+            }
+          }
+        }
+      }
+      
+      // 4. Ștergem toate anunțurile utilizatorului
       const { error: listingsError } = await supabase
         .from('listings')
         .delete()
@@ -1141,7 +1175,9 @@ export const admin = {
         return { error: listingsError }
       }
       
-      // 3. Ștergem profilul utilizatorului
+      console.log(`Successfully deleted all listings for user ${userId}`)
+      
+      // 5. Ștergem profilul utilizatorului
       const { error: deleteError } = await supabase
         .from('profiles')
         .delete()
@@ -1152,9 +1188,7 @@ export const admin = {
         return { error: deleteError }
       }
       
-      // 4. Încercăm să ștergem utilizatorul din auth
-      // Notă: Această operațiune necesită drepturi de admin în Supabase
-      // și nu va funcționa cu cheia anonimă
+      // 6. Încercăm să ștergem utilizatorul din auth
       try {
         // Încercăm să ștergem utilizatorul din auth, dar nu este esențial
         // deoarece am șters deja profilul și anunțurile
@@ -1163,6 +1197,7 @@ export const admin = {
         console.warn('Could not delete auth user (requires admin rights):', authError)
       }
       
+      console.log(`Successfully deleted user ${userId} and all associated data`)
       return { error: null }
     } catch (err) {
       console.error('Error deleting user:', err)
