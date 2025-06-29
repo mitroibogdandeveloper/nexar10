@@ -81,7 +81,7 @@ const CreateListingPage = () => {
           ...prev,
           email: profileData.email || '',
           phone: profileData.phone || '',
-          location: '' // Lăsăm locația goală pentru a forța utilizatorul să o selecteze
+          location: ''
         }));
       }
     } catch (error) {
