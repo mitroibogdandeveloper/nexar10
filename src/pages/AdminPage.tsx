@@ -61,6 +61,7 @@ const AdminPage = () => {
       setIsLoading(true);
       setError(null);
       
+      // Folosim getAllForAdmin pentru a obține TOATE anunțurile, inclusiv cele în așteptare
       const { data, error } = await admin.getAllListings();
       
       if (error) {
@@ -69,6 +70,7 @@ const AdminPage = () => {
         return;
       }
       
+      console.log('Loaded listings:', data?.length || 0, data);
       setListings(data || []);
     } catch (err) {
       console.error('Error loading listings:', err);
