@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, Package, User, Shield, 
+  Users, Package, User, 
   Check, X, Edit, Trash2, Eye, AlertTriangle, 
   RefreshCw, Building, UserX, UserCheck, Search,
   CheckCircle, XCircle

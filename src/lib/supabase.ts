@@ -199,36 +199,72 @@ export const auth = {
       if (data.user) {
         console.log('✅ User signed in successfully:', data.user.email)
         
-        try {
-          // Asigurăm că profilul există
-          const profile = await ensureProfileExists(data.user)
+        // Get user profile from database
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .single()
+        
+        if (!profileError && profileData) {
+          console.log('✅ Profile found:', profileData.name)
           
-          if (profile) {
-            // Salvăm datele utilizatorului în localStorage pentru acces rapid
-            const userData = {
-              id: data.user.id,
-              name: profile.name,
-              email: profile.email,
-              sellerType: profile.seller_type,
-              isAdmin: profile.is_admin || data.user.email === 'admin@nexar.ro',
-              isLoggedIn: true
-            }
-            
-            localStorage.setItem('user', JSON.stringify(userData))
-            console.log('💾 User data saved to localStorage:', userData)
-          }
-        } catch (profileError) {
-          console.error('⚠️ Profile handling failed during signin:', profileError)
-          // Salvăm măcar datele de bază
           const userData = {
             id: data.user.id,
-            name: data.user.email?.split('@')[0] || 'Utilizator',
-            email: data.user.email,
-            sellerType: 'individual',
-            isAdmin: data.user.email === 'admin@nexar.ro',
+            name: profileData.name,
+            email: profileData.email,
+            sellerType: profileData.seller_type,
+            isAdmin: profileData.is_admin || data.user.email === 'admin@nexar.ro',
             isLoggedIn: true
           }
+          
           localStorage.setItem('user', JSON.stringify(userData))
+          console.log('💾 User data saved to localStorage:', userData)
+        } else {
+          console.warn('⚠️ Profile not found for authenticated user')
+          
+          // Creăm automat profilul lipsă
+          try {
+            const { data: newProfile } = await supabase
+              .from('profiles')
+              .insert([{
+                user_id: data.user.id,
+                name: data.user.email?.split('@')[0] || 'Utilizator',
+                email: data.user.email,
+                seller_type: 'individual',
+                is_admin: data.user.email === 'admin@nexar.ro'
+              }])
+              .select()
+              .single()
+              
+            if (newProfile) {
+              const userData = {
+                id: data.user.id,
+                name: newProfile.name,
+                email: newProfile.email,
+                sellerType: newProfile.seller_type,
+                isAdmin: newProfile.is_admin || data.user.email === 'admin@nexar.ro',
+                isLoggedIn: true
+              }
+              
+              localStorage.setItem('user', JSON.stringify(userData))
+            } else {
+              localStorage.setItem('user', JSON.stringify({ 
+                id: data.user.id, 
+                email: data.user.email,
+                isAdmin: data.user.email === 'admin@nexar.ro',
+                isLoggedIn: true 
+              }))
+            }
+          } catch (profileCreateError) {
+            console.error('❌ Error creating profile:', profileCreateError)
+            localStorage.setItem('user', JSON.stringify({ 
+              id: data.user.id, 
+              email: data.user.email,
+              isAdmin: data.user.email === 'admin@nexar.ro',
+              isLoggedIn: true 
+            }))
+          }
         }
       }
       
@@ -724,14 +760,16 @@ export const listings = {
         .select()
       
       if (error) {
-        throw error
+        console.error('❌ Error updating listing:', error)
+        throw new Error(`Eroare la actualizarea anunțului: ${error.message}`)
       }
       
+      console.log('✅ Listing updated successfully:', id)
       return { data, error: null }
       
-    } catch (error: any) {
-      console.error('Error updating listing:', error)
-      return { data: null, error }
+    } catch (err: any) {
+      console.error('💥 Error in listings.update:', err)
+      return { data: null, error: err }
     }
   },
 
@@ -1246,81 +1284,13 @@ export const isAuthenticated = async () => {
 }
 
 // Funcție pentru a verifica dacă Supabase este configurat corect
-export const checkSupabaseConnection = async () => {
+export const checkConnection = async () => {
   try {
     const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true })
     return !error
   } catch (e) {
     console.error('Supabase connection error:', e)
     return false
-  }
-}
-
-// Funcție pentru verificarea conexiunii cu diagnostice
-export const checkConnection = async () => {
-  try {
-    console.log('🔍 Testing Supabase connection...')
-    
-    // Test 1: Verificăm dacă putem face o cerere simplă
-    const { error } = await supabase
-      .from('profiles')
-      .select('count', { count: 'exact', head: true })
-    
-    if (error) {
-      console.error('❌ Connection test failed:', error)
-      
-      // Analizăm eroarea pentru a oferi un mesaj mai util
-      let guidance = 'Verifică conexiunea la internet și configurația Supabase.'
-      let troubleshooting = [
-        'Verifică dacă proiectul Supabase este activ',
-        'Verifică dacă URL-ul și cheia API sunt corecte',
-        'Asigură-te că politicile RLS sunt configurate corect'
-      ]
-      
-      if (error.message.includes('Failed to fetch')) {
-        guidance = 'Problemă de rețea. Verifică conexiunea la internet.'
-        troubleshooting = [
-          'Verifică conexiunea la internet',
-          'Asigură-te că nu există restricții de firewall',
-          'Încearcă să reîmprospătezi pagina'
-        ]
-      } else if (error.message.includes('JWT')) {
-        guidance = 'Problemă de autentificare. Încearcă să te deconectezi și să te reconectezi.'
-        troubleshooting = [
-          'Deconectează-te și reconectează-te',
-          'Șterge cookie-urile și cache-ul browserului',
-          'Verifică dacă cheia API este corectă'
-        ]
-      } else if (error.message.includes('permission denied')) {
-        guidance = 'Problemă de permisiuni. Verifică politicile RLS în Supabase.'
-        troubleshooting = [
-          'Verifică politicile RLS pentru tabela profiles',
-          'Asigură-te că utilizatorul are permisiunile necesare',
-          'Contactează administratorul pentru asistență'
-        ]
-      }
-      
-      return {
-        success: false,
-        error: error.message,
-        guidance,
-        troubleshooting
-      }
-    }
-    
-    console.log('✅ Connection test passed')
-    return {
-      success: true,
-      message: 'Conexiunea la Supabase funcționează corect'
-    }
-    
-  } catch (err: any) {
-    console.error('💥 Error in checkConnection:', err)
-    return {
-      success: false,
-      error: err.message || 'Eroare necunoscută',
-      guidance: 'A apărut o eroare neașteptată. Încearcă să reîmprospătezi pagina.'
-    }
   }
 }
 
