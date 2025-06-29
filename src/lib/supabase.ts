@@ -221,12 +221,10 @@ export const auth = {
           console.error('⚠️ Profile handling failed during signin:', profileError)
           // Salvăm măcar datele de bază
           const userData = {
-            id: data.user.id,
-            name: data.user.email?.split('@')[0] || 'Utilizator',
+            id: data.user.id, 
             email: data.user.email,
-            sellerType: 'individual',
             isAdmin: data.user.email === 'admin@nexar.ro',
-            isLoggedIn: true
+            isLoggedIn: true 
           }
           localStorage.setItem('user', JSON.stringify(userData))
         }
@@ -683,6 +681,7 @@ export const listings = {
         .from('listings')
         .update(updateData)
         .eq('id', id)
+        .select()
       
       if (error) {
         console.error('❌ Error updating listing:', error)
