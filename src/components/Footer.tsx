@@ -1,10 +1,18 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Instagram, Clock } from 'lucide-react';
 
 const Footer = () => {
+  const navigate = useNavigate();
+  
   // Funcție pentru a asigura scroll la începutul paginii când se face click pe link-uri
   const handleLinkClick = () => {
+    window.scrollTo(0, 0);
+  };
+
+  // Funcție pentru a naviga la anunțuri filtrate după categorie
+  const handleCategoryClick = (category: string) => {
+    navigate(`/?categorie=${category.toLowerCase()}`);
     window.scrollTo(0, 0);
   };
 
@@ -66,7 +74,7 @@ const Footer = () => {
             <h3 className="text-lg font-semibold">Navigare Rapidă</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/anunturi" className="text-gray-300 hover:text-white transition-colors text-sm" onClick={handleLinkClick}>
+                <Link to="/" className="text-gray-300 hover:text-white transition-colors text-sm" onClick={handleLinkClick}>
                   Toate Anunțurile
                 </Link>
               </li>
@@ -93,24 +101,36 @@ const Footer = () => {
             <h3 className="text-lg font-semibold">Categorii Populare</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/anunturi?categorie=sport" className="text-gray-300 hover:text-white transition-colors text-sm" onClick={handleLinkClick}>
+                <button 
+                  onClick={() => handleCategoryClick('sport')} 
+                  className="text-gray-300 hover:text-white transition-colors text-sm text-left"
+                >
                   Motociclete Sport
-                </Link>
+                </button>
               </li>
               <li>
-                <Link to="/anunturi?categorie=touring" className="text-gray-300 hover:text-white transition-colors text-sm" onClick={handleLinkClick}>
+                <button 
+                  onClick={() => handleCategoryClick('touring')} 
+                  className="text-gray-300 hover:text-white transition-colors text-sm text-left"
+                >
                   Touring
-                </Link>
+                </button>
               </li>
               <li>
-                <Link to="/anunturi?categorie=cruiser" className="text-gray-300 hover:text-white transition-colors text-sm" onClick={handleLinkClick}>
+                <button 
+                  onClick={() => handleCategoryClick('cruiser')} 
+                  className="text-gray-300 hover:text-white transition-colors text-sm text-left"
+                >
                   Cruiser
-                </Link>
+                </button>
               </li>
               <li>
-                <Link to="/anunturi?categorie=adventure" className="text-gray-300 hover:text-white transition-colors text-sm" onClick={handleLinkClick}>
+                <button 
+                  onClick={() => handleCategoryClick('adventure')} 
+                  className="text-gray-300 hover:text-white transition-colors text-sm text-left"
+                >
                   Adventure
-                </Link>
+                </button>
               </li>
             </ul>
           </div>

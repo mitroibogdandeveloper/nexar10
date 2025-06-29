@@ -59,7 +59,7 @@ const AdminPage = () => {
       setIsLoading(true);
       setError(null);
       
-      // Folosim query direct pentru a obține TOATE anunțurile
+      // Folosim query direct pentru a obține TOATE anunțurile, inclusiv cele în așteptare
       const { data, error } = await supabase
         .from('listings')
         .select(`

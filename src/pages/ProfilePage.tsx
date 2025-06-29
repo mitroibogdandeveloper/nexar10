@@ -247,7 +247,19 @@ const ProfilePage = () => {
       }
       
       // Actualizăm profilul local
-      setProfile(data ? data[0] : editedProfile);
+      if (data && data.length > 0) {
+        setProfile(data[0]);
+      } else {
+        // Actualizăm cu datele editate dacă nu avem răspuns de la server
+        setProfile({...profile, 
+          name: editedProfile.name.trim(),
+          phone: editedProfile.phone?.trim() || '',
+          location: editedProfile.location?.trim() || '',
+          description: editedProfile.description?.trim() || '',
+          website: editedProfile.website?.trim() || ''
+        });
+      }
+      
       setIsEditing(false);
       
       // Resetăm starea
@@ -390,7 +402,7 @@ const ProfilePage = () => {
   };
 
   const handleViewListing = (listingId: string) => {
-    window.open(`/anunt/${listingId}`, '_blank');
+    navigate(`/anunt/${listingId}`);
   };
 
   // Loading state
@@ -867,7 +879,7 @@ const ProfilePage = () => {
                   ) : (
                     <div className="space-y-4">
                       {userListings.map(listing => (
-                        <div key={listing.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+                        <div key={listing.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleViewListing(listing.id)}>
                           <div className="flex flex-col sm:flex-row">
                             <div className="relative w-full sm:w-48 h-40 sm:h-auto">
                               <img
@@ -908,31 +920,35 @@ const ProfilePage = () => {
                                   <MapPin className="h-4 w-4" />
                                   <span>{listing.location}</span>
                                 </div>
-                                <div className="flex items-center space-x-1 text-gray-600">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>{new Date(listing.created_at).toLocaleDateString('ro-RO')}</span>
-                                </div>
-                              
                               </div>
                               
                               {isCurrentUser && (
                                 <div className="flex space-x-2">
                                   <button
-                                    onClick={() => handleViewListing(listing.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewListing(listing.id);
+                                    }}
                                     className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center space-x-1"
                                   >
                                     <Eye className="h-4 w-4" />
                                     <span>Vezi</span>
                                   </button>
                                   <button
-                                    onClick={() => handleEditListing(listing.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditListing(listing.id);
+                                    }}
                                     className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-medium hover:bg-blue-200 transition-colors flex items-center space-x-1"
                                   >
                                     <Edit className="h-4 w-4" />
                                     <span>Editează</span>
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteListing(listing.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteListing(listing.id);
+                                    }}
                                     className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition-colors flex items-center space-x-1"
                                   >
                                     <X className="h-4 w-4" />
@@ -991,7 +1007,7 @@ const ProfilePage = () => {
                   ) : (
                     <div className="space-y-4">
                       {pendingListings.map(listing => (
-                        <div key={listing.id} className="bg-white border border-yellow-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+                        <div key={listing.id} className="bg-white border border-yellow-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleViewListing(listing.id)}>
                           <div className="flex flex-col sm:flex-row">
                             <div className="relative w-full sm:w-48 h-40 sm:h-auto">
                               <img
@@ -1032,22 +1048,24 @@ const ProfilePage = () => {
                                   <MapPin className="h-4 w-4" />
                                   <span>{listing.location}</span>
                                 </div>
-                                <div className="flex items-center space-x-1 text-gray-600">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>{new Date(listing.created_at).toLocaleDateString('ro-RO')}</span>
-                                </div>
                               </div>
                               
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => handleEditListing(listing.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditListing(listing.id);
+                                  }}
                                   className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-medium hover:bg-blue-200 transition-colors flex items-center space-x-1"
                                 >
                                   <Edit className="h-4 w-4" />
                                   <span>Editează</span>
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteListing(listing.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteListing(listing.id);
+                                  }}
                                   className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition-colors flex items-center space-x-1"
                                 >
                                   <X className="h-4 w-4" />
