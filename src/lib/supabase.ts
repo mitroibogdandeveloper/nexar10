@@ -5,14 +5,123 @@ import { v4 as uuidv4 } from 'uuid';
 const supabaseUrl = 'https://tidnmzsivsthwwcfdzyo.supabase.co'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpZG5tenNpdnN0aHd3Y2ZkenlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3MjE5NTgsImV4cCI6MjA2NjI5Nzk1OH0.Sr1gSZ2qtoff7gmulkT8uIzB8eL7gqKUUNVj82OqHog'
 
+// Enhanced Supabase client with better error handling and retry logic
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true, // Activăm detectarea sesiunii în URL pentru confirmarea emailului
+    detectSessionInUrl: true,
     flowType: 'pkce'
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'nexar-app',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  },
+  db: {
+    schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 2
+    }
   }
 })
+
+// Enhanced error handling wrapper
+const withRetry = async <T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  delay = 1000
+): Promise<T> => {
+  let lastError: any
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (error: any) {
+      lastError = error
+      console.warn(`⚠️ Attempt ${attempt}/${maxRetries} failed:`, error.message)
+      
+      // Don't retry on certain errors
+      if (error.message?.includes('JWT') || 
+          error.message?.includes('unauthorized') ||
+          error.message?.includes('forbidden')) {
+        throw error
+      }
+      
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delay * attempt))
+      }
+    }
+  }
+  
+  throw lastError
+}
+
+// Connection health check with detailed diagnostics
+export const checkConnection = async () => {
+  try {
+    console.log('🔍 Checking Supabase connection...')
+    
+    // Test basic connectivity
+    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+      method: 'HEAD',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Accept': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+    
+    // Test database access
+    const { error } = await supabase
+      .from('profiles')
+      .select('count', { count: 'exact', head: true })
+    
+    if (error) {
+      throw error
+    }
+    
+    console.log('✅ Supabase connection successful')
+    return { success: true, message: 'Connection successful' }
+    
+  } catch (error: any) {
+    console.error('❌ Supabase connection failed:', error)
+    
+    // Provide specific error guidance
+    let guidance = 'Unknown connection error'
+    
+    if (error.message?.includes('NetworkError') || error.message?.includes('fetch')) {
+      guidance = 'Network connectivity issue. Check your internet connection and Supabase project status.'
+    } else if (error.message?.includes('CORS')) {
+      guidance = 'CORS error. Add http://localhost:3000 to your Supabase project CORS settings.'
+    } else if (error.message?.includes('401') || error.message?.includes('unauthorized')) {
+      guidance = 'Authentication error. Check your Supabase anon key.'
+    } else if (error.message?.includes('404')) {
+      guidance = 'Project not found. Check your Supabase URL.'
+    }
+    
+    return { 
+      success: false, 
+      error: error.message,
+      guidance,
+      troubleshooting: [
+        '1. Verify Supabase project is active (not paused)',
+        '2. Check Project URL and anon key in Supabase Dashboard → Settings → API',
+        '3. Add http://localhost:3000 to CORS origins in Supabase Dashboard',
+        '4. Ensure RLS policies allow public access where needed',
+        '5. Check browser network tab for detailed error information'
+      ]
+    }
+  }
+}
 
 // Tipuri pentru baza de date
 export interface Listing {
@@ -148,13 +257,15 @@ export const auth = {
     try {
       console.log('🚀 Starting signup process for:', email)
       
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: userData,
-          emailRedirectTo: `${window.location.origin}/auth/confirm`
-        }
+      const { data, error } = await withRetry(async () => {
+        return await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: userData,
+            emailRedirectTo: `${window.location.origin}/auth/confirm`
+          }
+        })
       })
       
       if (error) {
@@ -186,9 +297,11 @@ export const auth = {
       // Curățăm orice sesiune existentă înainte de a încerca să ne conectăm
       await supabase.auth.signOut()
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+      const { data, error } = await withRetry(async () => {
+        return await supabase.auth.signInWithPassword({
+          email,
+          password
+        })
       })
       
       if (error) {
@@ -294,8 +407,10 @@ export const auth = {
     console.log('🔑 Sending password reset email to:', email)
     
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+      const { data, error } = await withRetry(async () => {
+        return await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        })
       })
       
       if (error) {
@@ -315,8 +430,10 @@ export const auth = {
     try {
       console.log('🔐 Updating password...')
       
-      const { data, error } = await supabase.auth.updateUser({
-        password: newPassword
+      const { data, error } = await withRetry(async () => {
+        return await supabase.auth.updateUser({
+          password: newPassword
+        })
       })
       
       if (error) {
@@ -359,44 +476,46 @@ export const auth = {
   }
 }
 
-// Funcții pentru anunțuri
+// Funcții pentru anunțuri cu retry logic
 export const listings = {
   getAll: async (filters?: any) => {
     try {
       console.log('🔍 Fetching all listings from Supabase...')
       
-      let query = supabase
-        .from('listings')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
+      return await withRetry(async () => {
+        let query = supabase
+          .from('listings')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
 
-      if (filters) {
-        if (filters.category) query = query.eq('category', filters.category.toLowerCase())
-        if (filters.brand) query = query.eq('brand', filters.brand)
-        if (filters.priceMin) query = query.gte('price', filters.priceMin)
-        if (filters.priceMax) query = query.lte('price', filters.priceMax)
-        if (filters.yearMin) query = query.gte('year', filters.yearMin)
-        if (filters.yearMax) query = query.lte('year', filters.yearMax)
-        if (filters.location) query = query.ilike('location', `%${filters.location}%`)
-        if (filters.sellerType) query = query.eq('seller_type', filters.sellerType)
-        if (filters.condition) query = query.eq('condition', filters.condition)
-        if (filters.fuel) query = query.eq('fuel_type', filters.fuel)
-        if (filters.transmission) query = query.eq('transmission', filters.transmission)
-        if (filters.engineMin) query = query.gte('engine_capacity', filters.engineMin)
-        if (filters.engineMax) query = query.lte('engine_capacity', filters.engineMax)
-        if (filters.mileageMax) query = query.lte('mileage', filters.mileageMax)
-      }
+        if (filters) {
+          if (filters.category) query = query.eq('category', filters.category.toLowerCase())
+          if (filters.brand) query = query.eq('brand', filters.brand)
+          if (filters.priceMin) query = query.gte('price', filters.priceMin)
+          if (filters.priceMax) query = query.lte('price', filters.priceMax)
+          if (filters.yearMin) query = query.gte('year', filters.yearMin)
+          if (filters.yearMax) query = query.lte('year', filters.yearMax)
+          if (filters.location) query = query.ilike('location', `%${filters.location}%`)
+          if (filters.sellerType) query = query.eq('seller_type', filters.sellerType)
+          if (filters.condition) query = query.eq('condition', filters.condition)
+          if (filters.fuel) query = query.eq('fuel_type', filters.fuel)
+          if (filters.transmission) query = query.eq('transmission', filters.transmission)
+          if (filters.engineMin) query = query.gte('engine_capacity', filters.engineMin)
+          if (filters.engineMax) query = query.lte('engine_capacity', filters.engineMax)
+          if (filters.mileageMax) query = query.lte('mileage', filters.mileageMax)
+        }
 
-      const { data, error } = await query
-      
-      if (error) {
-        console.error('❌ Error fetching listings:', error)
-        return { data: null, error }
-      }
-      
-      console.log(`✅ Successfully fetched ${data?.length || 0} listings`)
-      return { data, error: null }
+        const { data, error } = await query
+        
+        if (error) {
+          console.error('❌ Error fetching listings:', error)
+          return { data: null, error }
+        }
+        
+        console.log(`✅ Successfully fetched ${data?.length || 0} listings`)
+        return { data, error: null }
+      })
     } catch (err) {
       console.error('💥 Error in listings.getAll:', err)
       return { data: null, error: err }
@@ -408,32 +527,34 @@ export const listings = {
     try {
       console.log('🔍 Fetching user listings from Supabase...')
       
-      // Obținem profilul utilizatorului pentru a avea seller_id
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', userId)
-        .single()
-      
-      if (profileError || !profile) {
-        console.error('❌ Error fetching user profile:', profileError)
-        return { data: null, error: profileError || new Error('User profile not found') }
-      }
-      
-      // Obținem toate anunțurile utilizatorului, inclusiv cele în așteptare
-      const { data, error } = await supabase
-        .from('listings')
-        .select('*')
-        .eq('seller_id', profile.id)
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error('❌ Error fetching user listings:', error)
-        return { data: null, error }
-      }
-      
-      console.log(`✅ Successfully fetched ${data?.length || 0} user listings`)
-      return { data, error: null }
+      return await withRetry(async () => {
+        // Obținem profilul utilizatorului pentru a avea seller_id
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', userId)
+          .single()
+        
+        if (profileError || !profile) {
+          console.error('❌ Error fetching user profile:', profileError)
+          return { data: null, error: profileError || new Error('User profile not found') }
+        }
+        
+        // Obținem toate anunțurile utilizatorului, inclusiv cele în așteptare
+        const { data, error } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('seller_id', profile.id)
+          .order('created_at', { ascending: false })
+        
+        if (error) {
+          console.error('❌ Error fetching user listings:', error)
+          return { data: null, error }
+        }
+        
+        console.log(`✅ Successfully fetched ${data?.length || 0} user listings`)
+        return { data, error: null }
+      })
     } catch (err) {
       console.error('💥 Error in listings.getUserListings:', err)
       return { data: null, error: err }
@@ -445,26 +566,28 @@ export const listings = {
     try {
       console.log('🔍 Fetching ALL listings for admin...')
       
-      const { data, error } = await supabase
-        .from('listings')
-        .select(`
-          *,
-          profiles!listings_seller_id_fkey (
-            name,
-            email,
-            seller_type,
-            verified
-          )
-        `)
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error('❌ Error fetching admin listings:', error)
-        return { data: null, error }
-      }
-      
-      console.log(`✅ Successfully fetched ${data?.length || 0} listings for admin`)
-      return { data, error: null }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('listings')
+          .select(`
+            *,
+            profiles!listings_seller_id_fkey (
+              name,
+              email,
+              seller_type,
+              verified
+            )
+          `)
+          .order('created_at', { ascending: false })
+        
+        if (error) {
+          console.error('❌ Error fetching admin listings:', error)
+          return { data: null, error }
+        }
+        
+        console.log(`✅ Successfully fetched ${data?.length || 0} listings for admin`)
+        return { data, error: null }
+      })
     } catch (err) {
       console.error('💥 Error in listings.getAllForAdmin:', err)
       return { data: null, error: err }
@@ -473,21 +596,23 @@ export const listings = {
 
   getById: async (id: string) => {
     try {
-      const { data, error } = await supabase
-        .from('listings')
-        .select('*')
-        .eq('id', id)
-        .single()
-      
-      // Incrementăm numărul de vizualizări
-      if (data && !error) {
-        await supabase
+      return await withRetry(async () => {
+        const { data, error } = await supabase
           .from('listings')
-          .update({ views_count: (data.views_count || 0) + 1 })
+          .select('*')
           .eq('id', id)
-      }
-      
-      return { data, error }
+          .single()
+        
+        // Incrementăm numărul de vizualizări
+        if (data && !error) {
+          await supabase
+            .from('listings')
+            .update({ views_count: (data.views_count || 0) + 1 })
+            .eq('id', id)
+        }
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error fetching listing:', err)
       return { data: null, error: err }
@@ -498,101 +623,103 @@ export const listings = {
     try {
       console.log('🚀 Starting listing creation process...')
       
-      // 1. Obținem utilizatorul curent
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        throw new Error('Utilizatorul nu este autentificat')
-      }
-      
-      console.log('👤 Current user:', user.email)
-      
-      // 2. Obținem profilul utilizatorului pentru a avea seller_id corect
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, name, seller_type')
-        .eq('user_id', user.id)
-        .single()
-      
-      if (profileError || !profile) {
-        console.error('❌ Profile not found:', profileError)
-        throw new Error('Profilul utilizatorului nu a fost găsit. Te rugăm să-ți completezi profilul mai întâi.')
-      }
-      
-      console.log('✅ Profile found:', profile)
-      
-      // 3. Încărcăm imaginile în storage (dacă există)
-      const imageUrls: string[] = []
-      
-      if (images && images.length > 0) {
-        console.log(`📸 Uploading ${images.length} images...`)
-        
-        for (const image of images) {
-          const fileExt = image.name.split('.').pop()
-          const fileName = `${uuidv4()}.${fileExt}`
-          const filePath = `${profile.id}/${fileName}`
-          
-          console.log(`📤 Uploading image: ${fileName}`)
-          
-          const { error: uploadError, data: uploadData } = await supabase.storage
-            .from('listing-images')
-            .upload(filePath, image, {
-              cacheControl: '3600',
-              upsert: false
-            })
-          
-          if (uploadError) {
-            console.error('❌ Error uploading image:', uploadError)
-            // Continuăm cu următoarea imagine în loc să oprim procesul
-            continue
-          }
-          
-          console.log('✅ Image uploaded:', uploadData.path)
-          
-          // Obținem URL-ul public pentru imagine
-          const { data: { publicUrl } } = supabase.storage
-            .from('listing-images')
-            .getPublicUrl(filePath)
-          
-          console.log('🔗 Public URL:', publicUrl)
-          imageUrls.push(publicUrl)
+      return await withRetry(async () => {
+        // 1. Obținem utilizatorul curent
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          throw new Error('Utilizatorul nu este autentificat')
         }
         
-        console.log(`✅ Uploaded ${imageUrls.length} images successfully`)
-      }
-      
-      // 4. Pregătim datele pentru anunț cu seller_id corect
-      const listingData = {
-        ...listing,
-        id: uuidv4(),
-        seller_id: profile.id, // Folosim ID-ul din profiles, nu din auth.users
-        seller_name: profile.name,
-        seller_type: profile.seller_type,
-        images: imageUrls,
-        status: 'pending', // Schimbat de la 'active' la 'pending' pentru a aștepta aprobarea
-        views_count: 0,
-        favorites_count: 0,
-        featured: false
-      }
-      
-      console.log('📝 Creating listing with data:', {
-        ...listingData,
-        images: `${imageUrls.length} images`
+        console.log('👤 Current user:', user.email)
+        
+        // 2. Obținem profilul utilizatorului pentru a avea seller_id corect
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, name, seller_type')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (profileError || !profile) {
+          console.error('❌ Profile not found:', profileError)
+          throw new Error('Profilul utilizatorului nu a fost găsit. Te rugăm să-ți completezi profilul mai întâi.')
+        }
+        
+        console.log('✅ Profile found:', profile)
+        
+        // 3. Încărcăm imaginile în storage (dacă există)
+        const imageUrls: string[] = []
+        
+        if (images && images.length > 0) {
+          console.log(`📸 Uploading ${images.length} images...`)
+          
+          for (const image of images) {
+            const fileExt = image.name.split('.').pop()
+            const fileName = `${uuidv4()}.${fileExt}`
+            const filePath = `${profile.id}/${fileName}`
+            
+            console.log(`📤 Uploading image: ${fileName}`)
+            
+            const { error: uploadError, data: uploadData } = await supabase.storage
+              .from('listing-images')
+              .upload(filePath, image, {
+                cacheControl: '3600',
+                upsert: false
+              })
+            
+            if (uploadError) {
+              console.error('❌ Error uploading image:', uploadError)
+              // Continuăm cu următoarea imagine în loc să oprim procesul
+              continue
+            }
+            
+            console.log('✅ Image uploaded:', uploadData.path)
+            
+            // Obținem URL-ul public pentru imagine
+            const { data: { publicUrl } } = supabase.storage
+              .from('listing-images')
+              .getPublicUrl(filePath)
+            
+            console.log('🔗 Public URL:', publicUrl)
+            imageUrls.push(publicUrl)
+          }
+          
+          console.log(`✅ Uploaded ${imageUrls.length} images successfully`)
+        }
+        
+        // 4. Pregătim datele pentru anunț cu seller_id corect
+        const listingData = {
+          ...listing,
+          id: uuidv4(),
+          seller_id: profile.id, // Folosim ID-ul din profiles, nu din auth.users
+          seller_name: profile.name,
+          seller_type: profile.seller_type,
+          images: imageUrls,
+          status: 'pending', // Schimbat de la 'active' la 'pending' pentru a aștepta aprobarea
+          views_count: 0,
+          favorites_count: 0,
+          featured: false
+        }
+        
+        console.log('📝 Creating listing with data:', {
+          ...listingData,
+          images: `${imageUrls.length} images`
+        })
+        
+        // 5. Creăm anunțul în baza de date
+        const { data, error } = await supabase
+          .from('listings')
+          .insert([listingData])
+          .select()
+          .single()
+        
+        if (error) {
+          console.error('❌ Error creating listing:', error)
+          throw new Error(`Eroare la crearea anunțului: ${error.message}`)
+        }
+        
+        console.log('✅ Listing created successfully:', data.id)
+        return { data, error: null }
       })
-      
-      // 5. Creăm anunțul în baza de date
-      const { data, error } = await supabase
-        .from('listings')
-        .insert([listingData])
-        .select()
-        .single()
-      
-      if (error) {
-        console.error('❌ Error creating listing:', error)
-        throw new Error(`Eroare la crearea anunțului: ${error.message}`)
-      }
-      
-      console.log('✅ Listing created successfully:', data.id)
-      return { data, error: null }
       
     } catch (err: any) {
       console.error('💥 Error in listings.create:', err)
@@ -604,132 +731,134 @@ export const listings = {
     try {
       console.log('🔄 Starting listing update process...')
       
-      // 1. Obținem anunțul curent pentru a păstra imaginile existente
-      const { data: currentListing, error: fetchError } = await supabase
-        .from('listings')
-        .select('images, seller_id, seller_name')
-        .eq('id', id)
-        .single()
-      
-      if (fetchError || !currentListing) {
-        console.error('❌ Error fetching current listing:', fetchError)
-        throw new Error(`Eroare la obținerea anunțului: ${fetchError?.message || 'Anunțul nu a fost găsit'}`)
-      }
-      
-      // 2. Gestionăm imaginile
-      let updatedImages = [...(currentListing.images || [])]
-      
-      // 2.1 Ștergem imaginile marcate pentru eliminare
-      if (imagesToRemove && imagesToRemove.length > 0) {
-        console.log(`🗑️ Removing ${imagesToRemove.length} images...`)
+      return await withRetry(async () => {
+        // 1. Obținem anunțul curent pentru a păstra imaginile existente
+        const { data: currentListing, error: fetchError } = await supabase
+          .from('listings')
+          .select('images, seller_id, seller_name')
+          .eq('id', id)
+          .single()
         
-        // Filtrăm imaginile care trebuie păstrate
-        updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img))
-        
-        // Încercăm să ștergem și din storage, dar nu blocăm procesul dacă eșuează
-        for (const imageUrl of imagesToRemove) {
-          try {
-            // Extragem path-ul din URL
-            const urlParts = imageUrl.split('/')
-            const fileName = urlParts[urlParts.length - 1]
-            const sellerFolder = urlParts[urlParts.length - 2]
-            const filePath = `${sellerFolder}/${fileName}`
-            
-            await supabase.storage
-              .from('listing-images')
-              .remove([filePath])
-            
-            console.log(`✅ Removed image from storage: ${filePath}`)
-          } catch (removeError) {
-            console.error('⚠️ Error removing image from storage:', removeError)
-            // Continuăm cu procesul chiar dacă ștergerea din storage eșuează
-          }
+        if (fetchError || !currentListing) {
+          console.error('❌ Error fetching current listing:', fetchError)
+          throw new Error(`Eroare la obținerea anunțului: ${fetchError?.message || 'Anunțul nu a fost găsit'}`)
         }
-      }
-      
-      // 2.2 Adăugăm imaginile noi
-      if (newImages && newImages.length > 0) {
-        console.log(`📸 Uploading ${newImages.length} new images...`)
         
-        for (const image of newImages) {
-          const fileExt = image.name.split('.').pop()
-          const fileName = `${uuidv4()}.${fileExt}`
-          const filePath = `${currentListing.seller_id}/${fileName}`
+        // 2. Gestionăm imaginile
+        let updatedImages = [...(currentListing.images || [])]
+        
+        // 2.1 Ștergem imaginile marcate pentru eliminare
+        if (imagesToRemove && imagesToRemove.length > 0) {
+          console.log(`🗑️ Removing ${imagesToRemove.length} images...`)
           
-          console.log(`📤 Uploading image: ${fileName}`)
+          // Filtrăm imaginile care trebuie păstrate
+          updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img))
           
-          const { error: uploadError, data: uploadData } = await supabase.storage
-            .from('listing-images')
-            .upload(filePath, image, {
-              cacheControl: '3600',
-              upsert: false
-            })
-          
-          if (uploadError) {
-            console.error('❌ Error uploading image:', uploadError)
-            // Continuăm cu următoarea imagine în loc să oprim procesul
-            continue
-          }
-          
-          console.log('✅ Image uploaded:', uploadData.path)
-          
-          // Obținem URL-ul public pentru imagine
-          const { data: { publicUrl } } = supabase.storage
-            .from('listing-images')
-            .getPublicUrl(filePath)
-          
-          console.log('🔗 Public URL:', publicUrl)
-          updatedImages.push(publicUrl)
-        }
-      }
-      
-      // 3. Actualizăm anunțul cu toate modificările
-      const updateData = {
-        ...updates,
-        images: updatedImages,
-        updated_at: new Date().toISOString()
-      }
-      
-      console.log('📝 Updating listing with data:', {
-        ...updateData,
-        images: `${updatedImages.length} images`
-      })
-      
-      // 4. Obținem profilul utilizatorului pentru a actualiza seller_name
-      if (!updates.seller_name) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('name')
-              .eq('id', currentListing.seller_id)
-              .single()
-            
-            if (profile && profile.name !== currentListing.seller_name) {
-              updateData.seller_name = profile.name
-              console.log('✅ Updated seller name to:', profile.name)
+          // Încercăm să ștergem și din storage, dar nu blocăm procesul dacă eșuează
+          for (const imageUrl of imagesToRemove) {
+            try {
+              // Extragem path-ul din URL
+              const urlParts = imageUrl.split('/')
+              const fileName = urlParts[urlParts.length - 1]
+              const sellerFolder = urlParts[urlParts.length - 2]
+              const filePath = `${sellerFolder}/${fileName}`
+              
+              await supabase.storage
+                .from('listing-images')
+                .remove([filePath])
+              
+              console.log(`✅ Removed image from storage: ${filePath}`)
+            } catch (removeError) {
+              console.error('⚠️ Error removing image from storage:', removeError)
+              // Continuăm cu procesul chiar dacă ștergerea din storage eșuează
             }
           }
-        } catch (profileError) {
-          console.error('⚠️ Error updating seller name:', profileError)
-          // Continuăm procesul chiar dacă actualizarea numelui eșuează
         }
-      }
-      
-      const { data, error } = await supabase
-        .from('listings')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-      
-      if (error) {
-        console.error('❌ Error updating listing:', error)
-        throw new Error(`Eroare la actualizarea anunțului: ${error.message}`)
-      }
-      
-      console.log('✅ Listing updated successfully:', id)
-      return { data, error: null }
+        
+        // 2.2 Adăugăm imaginile noi
+        if (newImages && newImages.length > 0) {
+          console.log(`📸 Uploading ${newImages.length} new images...`)
+          
+          for (const image of newImages) {
+            const fileExt = image.name.split('.').pop()
+            const fileName = `${uuidv4()}.${fileExt}`
+            const filePath = `${currentListing.seller_id}/${fileName}`
+            
+            console.log(`📤 Uploading image: ${fileName}`)
+            
+            const { error: uploadError, data: uploadData } = await supabase.storage
+              .from('listing-images')
+              .upload(filePath, image, {
+                cacheControl: '3600',
+                upsert: false
+              })
+            
+            if (uploadError) {
+              console.error('❌ Error uploading image:', uploadError)
+              // Continuăm cu următoarea imagine în loc să oprim procesul
+              continue
+            }
+            
+            console.log('✅ Image uploaded:', uploadData.path)
+            
+            // Obținem URL-ul public pentru imagine
+            const { data: { publicUrl } } = supabase.storage
+              .from('listing-images')
+              .getPublicUrl(filePath)
+            
+            console.log('🔗 Public URL:', publicUrl)
+            updatedImages.push(publicUrl)
+          }
+        }
+        
+        // 3. Actualizăm anunțul cu toate modificările
+        const updateData = {
+          ...updates,
+          images: updatedImages,
+          updated_at: new Date().toISOString()
+        }
+        
+        console.log('📝 Updating listing with data:', {
+          ...updateData,
+          images: `${updatedImages.length} images`
+        })
+        
+        // 4. Obținem profilul utilizatorului pentru a actualiza seller_name
+        if (!updates.seller_name) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', currentListing.seller_id)
+                .single()
+              
+              if (profile && profile.name !== currentListing.seller_name) {
+                updateData.seller_name = profile.name
+                console.log('✅ Updated seller name to:', profile.name)
+              }
+            }
+          } catch (profileError) {
+            console.error('⚠️ Error updating seller name:', profileError)
+            // Continuăm procesul chiar dacă actualizarea numelui eșuează
+          }
+        }
+        
+        const { data, error } = await supabase
+          .from('listings')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+        
+        if (error) {
+          console.error('❌ Error updating listing:', error)
+          throw new Error(`Eroare la actualizarea anunțului: ${error.message}`)
+        }
+        
+        console.log('✅ Listing updated successfully:', id)
+        return { data, error: null }
+      })
       
     } catch (err: any) {
       console.error('💥 Error in listings.update:', err)
@@ -739,42 +868,44 @@ export const listings = {
 
   delete: async (id: string) => {
     try {
-      // Obținem anunțul pentru a șterge imaginile
-      const { data: listing } = await supabase
-        .from('listings')
-        .select('images')
-        .eq('id', id)
-        .single()
-      
-      // Ștergem imaginile din storage
-      if (listing && listing.images) {
-        for (const imageUrl of listing.images) {
-          try {
-            // Extragem path-ul din URL
-            const urlParts = imageUrl.split('/')
-            const fileName = urlParts[urlParts.length - 1]
-            const sellerFolder = urlParts[urlParts.length - 2]
-            const filePath = `${sellerFolder}/${fileName}`
-            
-            await supabase.storage
-              .from('listing-images')
-              .remove([filePath])
+      return await withRetry(async () => {
+        // Obținem anunțul pentru a șterge imaginile
+        const { data: listing } = await supabase
+          .from('listings')
+          .select('images')
+          .eq('id', id)
+          .single()
+        
+        // Ștergem imaginile din storage
+        if (listing && listing.images) {
+          for (const imageUrl of listing.images) {
+            try {
+              // Extragem path-ul din URL
+              const urlParts = imageUrl.split('/')
+              const fileName = urlParts[urlParts.length - 1]
+              const sellerFolder = urlParts[urlParts.length - 2]
+              const filePath = `${sellerFolder}/${fileName}`
               
-            console.log(`✅ Removed image from storage: ${filePath}`)
-          } catch (error) {
-            console.error('Error removing image:', error)
-            // Continuăm cu ștergerea anunțului chiar dacă ștergerea imaginilor eșuează
+              await supabase.storage
+                .from('listing-images')
+                .remove([filePath])
+                
+              console.log(`✅ Removed image from storage: ${filePath}`)
+            } catch (error) {
+              console.error('Error removing image:', error)
+              // Continuăm cu ștergerea anunțului chiar dacă ștergerea imaginilor eșuează
+            }
           }
         }
-      }
-      
-      // Ștergem anunțul
-      const { error } = await supabase
-        .from('listings')
-        .delete()
-        .eq('id', id)
-      
-      return { error }
+        
+        // Ștergem anunțul
+        const { error } = await supabase
+          .from('listings')
+          .delete()
+          .eq('id', id)
+        
+        return { error }
+      })
     } catch (err) {
       console.error('Error deleting listing:', err)
       return { error: err }
@@ -782,17 +913,19 @@ export const listings = {
   }
 }
 
-// Funcții pentru profiluri
+// Funcții pentru profiluri cu retry logic
 export const profiles = {
   getById: async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single()
-      
-      return { data, error }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error fetching profile:', err)
       return { data: null, error: err }
@@ -801,37 +934,39 @@ export const profiles = {
   
   update: async (userId: string, updates: Partial<User>) => {
     try {
-      // 1. Actualizăm profilul
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('user_id', userId)
-        .select()
-      
-      if (error) {
-        console.error('Error updating profile:', error)
-        return { data, error }
-      }
-      
-      // 2. Dacă numele s-a schimbat, actualizăm și numele vânzătorului în toate anunțurile
-      if (updates.name && data && data.length > 0) {
-        const profile = data[0]
+      return await withRetry(async () => {
+        // 1. Actualizăm profilul
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('user_id', userId)
+          .select()
         
-        // Actualizăm numele vânzătorului în toate anunțurile
-        const { error: updateListingsError } = await supabase
-          .from('listings')
-          .update({ seller_name: profile.name })
-          .eq('seller_id', profile.id)
-        
-        if (updateListingsError) {
-          console.error('Error updating seller name in listings:', updateListingsError)
-          // Nu blocăm procesul dacă actualizarea anunțurilor eșuează
-        } else {
-          console.log('✅ Updated seller name in all listings')
+        if (error) {
+          console.error('Error updating profile:', error)
+          return { data, error }
         }
-      }
-      
-      return { data, error }
+        
+        // 2. Dacă numele s-a schimbat, actualizăm și numele vânzătorului în toate anunțurile
+        if (updates.name && data && data.length > 0) {
+          const profile = data[0]
+          
+          // Actualizăm numele vânzătorului în toate anunțurile
+          const { error: updateListingsError } = await supabase
+            .from('listings')
+            .update({ seller_name: profile.name })
+            .eq('seller_id', profile.id)
+          
+          if (updateListingsError) {
+            console.error('Error updating seller name in listings:', updateListingsError)
+            // Nu blocăm procesul dacă actualizarea anunțurilor eșuează
+          } else {
+            console.log('✅ Updated seller name in all listings')
+          }
+        }
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error updating profile:', err)
       return { data: null, error: err }
@@ -840,31 +975,33 @@ export const profiles = {
   
   uploadAvatar: async (userId: string, file: File) => {
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${uuidv4()}.${fileExt}`
-      const filePath = `${userId}/${fileName}`
-      
-      const { error: uploadError } = await supabase.storage
-        .from('profile-images')
-        .upload(filePath, file)
-      
-      if (uploadError) {
-        return { error: uploadError }
-      }
-      
-      // Obținem URL-ul public pentru avatar
-      const { data: { publicUrl } } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(filePath)
-      
-      // Actualizăm profilul cu noul avatar
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('user_id', userId)
-        .select()
-      
-      return { data, error }
+      return await withRetry(async () => {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${uuidv4()}.${fileExt}`
+        const filePath = `${userId}/${fileName}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('profile-images')
+          .upload(filePath, file)
+        
+        if (uploadError) {
+          return { error: uploadError }
+        }
+        
+        // Obținem URL-ul public pentru avatar
+        const { data: { publicUrl } } = supabase.storage
+          .from('profile-images')
+          .getPublicUrl(filePath)
+        
+        // Actualizăm profilul cu noul avatar
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ avatar_url: publicUrl })
+          .eq('user_id', userId)
+          .select()
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error uploading avatar:', err)
       return { data: null, error: err }
@@ -872,23 +1009,25 @@ export const profiles = {
   }
 }
 
-// Funcții pentru mesaje
+// Funcții pentru mesaje cu retry logic
 export const messages = {
   send: async (senderId: string, receiverId: string, listingId: string, content: string, subject?: string) => {
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert([{
-          sender_id: senderId,
-          receiver_id: receiverId,
-          listing_id: listingId,
-          content,
-          subject,
-          id: uuidv4()
-        }])
-        .select()
-      
-      return { data, error }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('messages')
+          .insert([{
+            sender_id: senderId,
+            receiver_id: receiverId,
+            listing_id: listingId,
+            content,
+            subject,
+            id: uuidv4()
+          }])
+          .select()
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error sending message:', err)
       return { data: null, error: err }
@@ -897,13 +1036,15 @@ export const messages = {
   
   getConversations: async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .order('created_at', { ascending: false })
-      
-      return { data, error }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+          .order('created_at', { ascending: false })
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error fetching conversations:', err)
       return { data: null, error: err }
@@ -912,13 +1053,15 @@ export const messages = {
   
   markAsRead: async (messageId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .update({ read: true })
-        .eq('id', messageId)
-        .select()
-      
-      return { data, error }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('messages')
+          .update({ read: true })
+          .eq('id', messageId)
+          .select()
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error marking message as read:', err)
       return { data: null, error: err }
@@ -926,7 +1069,7 @@ export const messages = {
   }
 }
 
-// Funcții pentru admin
+// Funcții pentru admin cu retry logic
 export const admin = {
   // Verifică dacă utilizatorul curent este admin - VERSIUNE REPARATĂ
   isAdmin: async () => {
@@ -1020,26 +1163,28 @@ export const admin = {
     try {
       console.log('🔍 Fetching ALL listings for admin...')
       
-      const { data, error } = await supabase
-        .from('listings')
-        .select(`
-          *,
-          profiles!listings_seller_id_fkey (
-            name,
-            email,
-            seller_type,
-            verified
-          )
-        `)
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error('❌ Error fetching admin listings:', error)
-        return { data: null, error }
-      }
-      
-      console.log(`✅ Successfully fetched ${data?.length || 0} listings for admin`)
-      return { data, error: null }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('listings')
+          .select(`
+            *,
+            profiles!listings_seller_id_fkey (
+              name,
+              email,
+              seller_type,
+              verified
+            )
+          `)
+          .order('created_at', { ascending: false })
+        
+        if (error) {
+          console.error('❌ Error fetching admin listings:', error)
+          return { data: null, error }
+        }
+        
+        console.log(`✅ Successfully fetched ${data?.length || 0} listings for admin`)
+        return { data, error: null }
+      })
     } catch (err) {
       console.error('💥 Error in listings.getAllForAdmin:', err)
       return { data: null, error: err }
@@ -1051,19 +1196,21 @@ export const admin = {
     try {
       console.log('📝 Updating listing status:', listingId, 'to', status)
       
-      const { data, error } = await supabase
-        .from('listings')
-        .update({ status })
-        .eq('id', listingId)
-        .select()
-      
-      if (error) {
-        console.error('❌ Error updating listing status:', error)
-        return { data: null, error }
-      }
-      
-      console.log('✅ Listing status updated successfully')
-      return { data, error: null }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('listings')
+          .update({ status })
+          .eq('id', listingId)
+          .select()
+        
+        if (error) {
+          console.error('❌ Error updating listing status:', error)
+          return { data: null, error }
+        }
+        
+        console.log('✅ Listing status updated successfully')
+        return { data, error: null }
+      })
     } catch (err) {
       console.error('💥 Error in updateListingStatus:', err)
       return { data: null, error: err }
@@ -1075,48 +1222,50 @@ export const admin = {
     try {
       console.log('🗑️ Deleting listing:', listingId)
       
-      // Obținem anunțul pentru a șterge imaginile
-      const { data: listing } = await supabase
-        .from('listings')
-        .select('images')
-        .eq('id', listingId)
-        .single()
-      
-      // Ștergem imaginile din storage
-      if (listing && listing.images) {
-        for (const imageUrl of listing.images) {
-          try {
-            // Extragem path-ul din URL
-            const urlParts = imageUrl.split('/')
-            const fileName = urlParts[urlParts.length - 1]
-            const sellerFolder = urlParts[urlParts.length - 2]
-            const filePath = `${sellerFolder}/${fileName}`
-            
-            await supabase.storage
-              .from('listing-images')
-              .remove([filePath])
+      return await withRetry(async () => {
+        // Obținem anunțul pentru a șterge imaginile
+        const { data: listing } = await supabase
+          .from('listings')
+          .select('images')
+          .eq('id', listingId)
+          .single()
+        
+        // Ștergem imaginile din storage
+        if (listing && listing.images) {
+          for (const imageUrl of listing.images) {
+            try {
+              // Extragem path-ul din URL
+              const urlParts = imageUrl.split('/')
+              const fileName = urlParts[urlParts.length - 1]
+              const sellerFolder = urlParts[urlParts.length - 2]
+              const filePath = `${sellerFolder}/${fileName}`
               
-            console.log(`✅ Removed image from storage: ${filePath}`)
-          } catch (error) {
-            console.error('Error removing image:', error)
-            // Continuăm cu ștergerea anunțului chiar dacă ștergerea imaginilor eșuează
+              await supabase.storage
+                .from('listing-images')
+                .remove([filePath])
+                
+              console.log(`✅ Removed image from storage: ${filePath}`)
+            } catch (error) {
+              console.error('Error removing image:', error)
+              // Continuăm cu ștergerea anunțului chiar dacă ștergerea imaginilor eșuează
+            }
           }
         }
-      }
-      
-      // Ștergem anunțul
-      const { error } = await supabase
-        .from('listings')
-        .delete()
-        .eq('id', listingId)
-      
-      if (error) {
-        console.error('❌ Error deleting listing:', error)
-        return { error }
-      }
-      
-      console.log('✅ Listing deleted successfully')
-      return { error: null }
+        
+        // Ștergem anunțul
+        const { error } = await supabase
+          .from('listings')
+          .delete()
+          .eq('id', listingId)
+        
+        if (error) {
+          console.error('❌ Error deleting listing:', error)
+          return { error }
+        }
+        
+        console.log('✅ Listing deleted successfully')
+        return { error: null }
+      })
     } catch (err) {
       console.error('💥 Error in deleteListing:', err)
       return { error: err }
@@ -1126,12 +1275,14 @@ export const admin = {
   // Obține toți utilizatorii
   getAllUsers: async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      return { data, error }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error fetching users:', err)
       return { data: null, error: err }
@@ -1141,13 +1292,15 @@ export const admin = {
   // Suspendă/activează un utilizator
   toggleUserStatus: async (userId: string, suspended: boolean) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ suspended })
-        .eq('user_id', userId)
-        .select()
-      
-      return { data, error }
+      return await withRetry(async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ suspended })
+          .eq('user_id', userId)
+          .select()
+        
+        return { data, error }
+      })
     } catch (err) {
       console.error('Error toggling user status:', err)
       return { data: null, error: err }
@@ -1157,78 +1310,80 @@ export const admin = {
   // Șterge un utilizator și toate anunțurile sale
   deleteUser: async (userId: string) => {
     try {
-      // 1. Obținem profilul utilizatorului
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', userId)
-        .single()
-      
-      if (profileError || !profile) {
-        console.error('Error fetching user profile:', profileError)
-        return { error: profileError || new Error('User profile not found') }
-      }
-      
-      // 2. Obținem toate anunțurile utilizatorului pentru a șterge imaginile
-      const { data: userListings } = await supabase
-        .from('listings')
-        .select('id, images')
-        .eq('seller_id', profile.id)
-      
-      // 3. Ștergem imaginile din storage pentru fiecare anunț
-      if (userListings && userListings.length > 0) {
-        console.log(`Found ${userListings.length} listings to delete for user ${userId}`)
+      return await withRetry(async () => {
+        // 1. Obținem profilul utilizatorului
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', userId)
+          .single()
         
-        for (const listing of userListings) {
-          if (listing.images && listing.images.length > 0) {
-            for (const imageUrl of listing.images) {
-              try {
-                // Extragem path-ul din URL
-                const urlParts = imageUrl.split('/')
-                const fileName = urlParts[urlParts.length - 1]
-                const sellerFolder = urlParts[urlParts.length - 2]
-                const filePath = `${sellerFolder}/${fileName}`
-                
-                await supabase.storage
-                  .from('listing-images')
-                  .remove([filePath])
-                
-                console.log(`Removed image from storage: ${filePath}`)
-              } catch (error) {
-                console.error('Error removing image:', error)
-                // Continuăm cu ștergerea chiar dacă ștergerea imaginilor eșuează
+        if (profileError || !profile) {
+          console.error('Error fetching user profile:', profileError)
+          return { error: profileError || new Error('User profile not found') }
+        }
+        
+        // 2. Obținem toate anunțurile utilizatorului pentru a șterge imaginile
+        const { data: userListings } = await supabase
+          .from('listings')
+          .select('id, images')
+          .eq('seller_id', profile.id)
+        
+        // 3. Ștergem imaginile din storage pentru fiecare anunț
+        if (userListings && userListings.length > 0) {
+          console.log(`Found ${userListings.length} listings to delete for user ${userId}`)
+          
+          for (const listing of userListings) {
+            if (listing.images && listing.images.length > 0) {
+              for (const imageUrl of listing.images) {
+                try {
+                  // Extragem path-ul din URL
+                  const urlParts = imageUrl.split('/')
+                  const fileName = urlParts[urlParts.length - 1]
+                  const sellerFolder = urlParts[urlParts.length - 2]
+                  const filePath = `${sellerFolder}/${fileName}`
+                  
+                  await supabase.storage
+                    .from('listing-images')
+                    .remove([filePath])
+                  
+                  console.log(`Removed image from storage: ${filePath}`)
+                } catch (error) {
+                  console.error('Error removing image:', error)
+                  // Continuăm cu ștergerea chiar dacă ștergerea imaginilor eșuează
+                }
               }
             }
           }
         }
-      }
-      
-      // 4. Ștergem toate anunțurile utilizatorului
-      const { error: listingsError } = await supabase
-        .from('listings')
-        .delete()
-        .eq('seller_id', profile.id)
-      
-      if (listingsError) {
-        console.error('Error deleting user listings:', listingsError)
-        return { error: listingsError }
-      }
-      
-      console.log(`Successfully deleted all listings for user ${userId}`)
-      
-      // 5. Ștergem profilul utilizatorului
-      const { error: deleteError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', userId)
-      
-      if (deleteError) {
-        console.error('Error deleting user profile:', deleteError)
-        return { error: deleteError }
-      }
-      
-      console.log(`Successfully deleted user ${userId} and all associated data`)
-      return { error: null }
+        
+        // 4. Ștergem toate anunțurile utilizatorului
+        const { error: listingsError } = await supabase
+          .from('listings')
+          .delete()
+          .eq('seller_id', profile.id)
+        
+        if (listingsError) {
+          console.error('Error deleting user listings:', listingsError)
+          return { error: listingsError }
+        }
+        
+        console.log(`Successfully deleted all listings for user ${userId}`)
+        
+        // 5. Ștergem profilul utilizatorului
+        const { error: deleteError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('user_id', userId)
+        
+        if (deleteError) {
+          console.error('Error deleting user profile:', deleteError)
+          return { error: deleteError }
+        }
+        
+        console.log(`Successfully deleted user ${userId} and all associated data`)
+        return { error: null }
+      })
     } catch (err) {
       console.error('Error deleting user:', err)
       return { error: err }
@@ -1250,8 +1405,8 @@ export const isAuthenticated = async () => {
 // Funcție pentru a verifica dacă Supabase este configurat corect
 export const checkSupabaseConnection = async () => {
   try {
-    const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true })
-    return !error
+    const result = await checkConnection()
+    return result.success
   } catch (e) {
     console.error('Supabase connection error:', e)
     return false
