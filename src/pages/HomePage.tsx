@@ -1143,7 +1143,7 @@ const HomePage = () => {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						<div className="bg-white p-6 rounded-lg shadow-sm text-center hover:shadow-md transition-shadow border border-gray-200">
 							<div className="inline-flex items-center justify-center w-12 h-12 bg-nexar-accent/10 rounded-lg mb-4">
-								<Users className="h-6 w-6 text-nexar-accent" />
+								<Shield className="h-6 w-6 text-nexar-accent" />
 							</div>
 							<h3 className="text-lg font-bold text-gray-900 mb-3">
 								Siguranță Garantată

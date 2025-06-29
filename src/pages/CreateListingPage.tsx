@@ -81,7 +81,7 @@ const CreateListingPage = () => {
           ...prev,
           email: profileData.email || '',
           phone: profileData.phone || '',
-          location: ''
+          location: ''  // Reset location to empty string instead of pre-filling
         }));
       }
     } catch (error) {

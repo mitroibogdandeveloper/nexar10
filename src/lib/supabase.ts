@@ -199,72 +199,36 @@ export const auth = {
       if (data.user) {
         console.log('✅ User signed in successfully:', data.user.email)
         
-        // Get user profile from database
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', data.user.id)
-          .single()
-        
-        if (!profileError && profileData) {
-          console.log('✅ Profile found:', profileData.name)
+        try {
+          // Asigurăm că profilul există
+          const profile = await ensureProfileExists(data.user)
           
+          if (profile) {
+            // Salvăm datele utilizatorului în localStorage pentru acces rapid
+            const userData = {
+              id: data.user.id,
+              name: profile.name,
+              email: profile.email,
+              sellerType: profile.seller_type,
+              isAdmin: profile.is_admin || data.user.email === 'admin@nexar.ro',
+              isLoggedIn: true
+            }
+            
+            localStorage.setItem('user', JSON.stringify(userData))
+            console.log('💾 User data saved to localStorage:', userData)
+          }
+        } catch (profileError) {
+          console.error('⚠️ Profile handling failed during signin:', profileError)
+          // Salvăm măcar datele de bază
           const userData = {
             id: data.user.id,
-            name: profileData.name,
-            email: profileData.email,
-            sellerType: profileData.seller_type,
-            isAdmin: profileData.is_admin || data.user.email === 'admin@nexar.ro',
+            name: data.user.email?.split('@')[0] || 'Utilizator',
+            email: data.user.email,
+            sellerType: 'individual',
+            isAdmin: data.user.email === 'admin@nexar.ro',
             isLoggedIn: true
           }
-          
           localStorage.setItem('user', JSON.stringify(userData))
-          console.log('💾 User data saved to localStorage:', userData)
-        } else {
-          console.warn('⚠️ Profile not found for authenticated user')
-          
-          // Creăm automat profilul lipsă
-          try {
-            const { data: newProfile } = await supabase
-              .from('profiles')
-              .insert([{
-                user_id: data.user.id,
-                name: data.user.email?.split('@')[0] || 'Utilizator',
-                email: data.user.email,
-                seller_type: 'individual',
-                is_admin: data.user.email === 'admin@nexar.ro'
-              }])
-              .select()
-              .single()
-              
-            if (newProfile) {
-              const userData = {
-                id: data.user.id,
-                name: newProfile.name,
-                email: newProfile.email,
-                sellerType: newProfile.seller_type,
-                isAdmin: newProfile.is_admin || data.user.email === 'admin@nexar.ro',
-                isLoggedIn: true
-              }
-              
-              localStorage.setItem('user', JSON.stringify(userData))
-            } else {
-              localStorage.setItem('user', JSON.stringify({ 
-                id: data.user.id, 
-                email: data.user.email,
-                isAdmin: data.user.email === 'admin@nexar.ro',
-                isLoggedIn: true 
-              }))
-            }
-          } catch (profileCreateError) {
-            console.error('❌ Error creating profile:', profileCreateError)
-            localStorage.setItem('user', JSON.stringify({ 
-              id: data.user.id, 
-              email: data.user.email,
-              isAdmin: data.user.email === 'admin@nexar.ro',
-              isLoggedIn: true 
-            }))
-          }
         }
       }
       
@@ -1284,7 +1248,7 @@ export const isAuthenticated = async () => {
 }
 
 // Funcție pentru a verifica dacă Supabase este configurat corect
-export const checkConnection = async () => {
+export const checkSupabaseConnection = async () => {
   try {
     const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true })
     return !error
