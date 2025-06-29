@@ -403,6 +403,43 @@ export const listings = {
     }
   },
 
+  // Funcție pentru a obține anunțurile utilizatorului curent (inclusiv cele în așteptare)
+  getUserListings: async (userId: string) => {
+    try {
+      console.log('🔍 Fetching user listings from Supabase...')
+      
+      // Obținem profilul utilizatorului pentru a avea seller_id
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single()
+      
+      if (profileError || !profile) {
+        console.error('❌ Error fetching user profile:', profileError)
+        return { data: null, error: profileError || new Error('User profile not found') }
+      }
+      
+      // Obținem toate anunțurile utilizatorului, inclusiv cele în așteptare
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('seller_id', profile.id)
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('❌ Error fetching user listings:', error)
+        return { data: null, error }
+      }
+      
+      console.log(`✅ Successfully fetched ${data?.length || 0} user listings`)
+      return { data, error: null }
+    } catch (err) {
+      console.error('💥 Error in listings.getUserListings:', err)
+      return { data: null, error: err }
+    }
+  },
+
   // Funcție specială pentru admin să vadă toate anunțurile
   getAllForAdmin: async () => {
     try {
@@ -531,7 +568,7 @@ export const listings = {
         seller_name: profile.name,
         seller_type: profile.seller_type,
         images: imageUrls,
-        status: 'active', // Schimbăm la 'active' pentru a fi vizibil imediat
+        status: 'pending', // Schimbat de la 'active' la 'pending' pentru a aștepta aprobarea
         views_count: 0,
         favorites_count: 0,
         featured: false
@@ -1188,15 +1225,6 @@ export const admin = {
       if (deleteError) {
         console.error('Error deleting user profile:', deleteError)
         return { error: deleteError }
-      }
-      
-      // 6. Încercăm să ștergem utilizatorul din auth
-      try {
-        // Încercăm să ștergem utilizatorul din auth, dar nu este esențial
-        // deoarece am șters deja profilul și anunțurile
-        await supabase.auth.admin.deleteUser(userId)
-      } catch (authError) {
-        console.warn('Could not delete auth user (requires admin rights):', authError)
       }
       
       console.log(`Successfully deleted user ${userId} and all associated data`)

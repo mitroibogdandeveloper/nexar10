@@ -4,9 +4,10 @@ import {
   User, Mail, Phone, MapPin, Edit, Camera, 
   Package, Eye, MessageCircle, 
   ChevronRight, Calendar, Shield, Building, 
-  Lock, AlertTriangle, CheckCircle, X, ChevronDown, RefreshCw
+  Lock, AlertTriangle, CheckCircle, X, ChevronDown, RefreshCw,
+  Clock, CheckCircle2
 } from 'lucide-react';
-import { supabase, auth, profiles, romanianCities } from '../lib/supabase';
+import { supabase, auth, profiles, romanianCities, listings } from '../lib/supabase';
 import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const ProfilePage = () => {
@@ -20,6 +21,7 @@ const ProfilePage = () => {
   const [editedProfile, setEditedProfile] = useState<any>({});
   const [activeTab, setActiveTab] = useState('listings');
   const [userListings, setUserListings] = useState<any[]>([]);
+  const [pendingListings, setPendingListings] = useState<any[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -120,7 +122,12 @@ const ProfilePage = () => {
         return;
       }
       
-      setUserListings(data || []);
+      // Separăm anunțurile active de cele în așteptare
+      const active = data?.filter(listing => listing.status === 'active') || [];
+      const pending = data?.filter(listing => listing.status === 'pending') || [];
+      
+      setUserListings(active);
+      setPendingListings(pending);
     } catch (err) {
       console.error('Error loading user listings:', err);
     } finally {
@@ -318,7 +325,7 @@ const ProfilePage = () => {
 
   const handleEditListing = (listingId: string) => {
     // Verificăm dacă anunțul aparține utilizatorului curent
-    const listing = userListings.find(l => l.id === listingId);
+    const listing = userListings.find(l => l.id === listingId) || pendingListings.find(l => l.id === listingId);
     
     if (!listing) {
       alert('Anunțul nu a fost găsit');
@@ -340,7 +347,7 @@ const ProfilePage = () => {
     
     try {
       // Verificăm dacă anunțul aparține utilizatorului curent
-      const listing = userListings.find(l => l.id === listingId);
+      const listing = userListings.find(l => l.id === listingId) || pendingListings.find(l => l.id === listingId);
       
       if (!listing) {
         alert('Anunțul nu a fost găsit');
@@ -366,6 +373,7 @@ const ProfilePage = () => {
       
       // Actualizăm lista de anunțuri
       setUserListings(prev => prev.filter(listing => listing.id !== listingId));
+      setPendingListings(prev => prev.filter(listing => listing.id !== listingId));
       
       alert('Anunțul a fost șters cu succes!');
     } catch (err) {
@@ -765,11 +773,18 @@ const ProfilePage = () => {
             <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Statistici</h2>
               
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold text-nexar-accent">{userListings.length}</div>
                   <div className="text-sm text-gray-600">Anunțuri Active</div>
                 </div>
+                
+                {isCurrentUser && (
+                  <div className="bg-yellow-50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-600">{pendingListings.length}</div>
+                    <div className="text-sm text-gray-600">În Așteptare</div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -796,11 +811,28 @@ const ProfilePage = () => {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Anunțurile Mele
+                  Anunțuri Active
                 </button>
+                
+                {isCurrentUser && (
+                  <button
+                    onClick={() => setActiveTab('pending')}
+                    className={`flex-1 py-4 px-6 text-center font-semibold transition-colors ${
+                      activeTab === 'pending'
+                        ? 'text-nexar-accent border-b-2 border-nexar-accent'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    În Așteptare {pendingListings.length > 0 && (
+                      <span className="ml-2 bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        {pendingListings.length}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
 
-              {/* Listings Tab */}
+              {/* Active Listings Tab */}
               {activeTab === 'listings' && (
                 <div className="p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-6">
@@ -823,7 +855,7 @@ const ProfilePage = () => {
                           onClick={() => navigate('/adauga-anunt')}
                           className="mt-4 bg-nexar-accent text-white px-6 py-2 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
                         >
-                          Adaugă Primul Anunț
+                          Adaugă Anunț
                         </button>
                       )}
                     </div>
@@ -903,6 +935,120 @@ const ProfilePage = () => {
                                   </button>
                                 </div>
                               )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Pending Listings Tab */}
+              {activeTab === 'pending' && isCurrentUser && (
+                <div className="p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <Clock className="h-5 w-5 mr-2 text-yellow-600" />
+                    Anunțuri în Așteptare
+                  </h2>
+                  
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <p className="text-yellow-700 flex items-start">
+                      <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                      <span>
+                        Anunțurile tale sunt în curs de verificare de către administratori. 
+                        Acest proces poate dura până la 24 de ore. Vei fi notificat când anunțurile tale vor fi aprobate.
+                      </span>
+                    </p>
+                  </div>
+                  
+                  {isLoadingListings ? (
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 border-4 border-nexar-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-gray-600">Se încarcă anunțurile...</p>
+                    </div>
+                  ) : pendingListings.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-xl">
+                      <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Nu ai anunțuri în așteptare
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        Toate anunțurile tale au fost procesate. Poți adăuga un anunț nou oricând.
+                      </p>
+                      <button
+                        onClick={() => navigate('/adauga-anunt')}
+                        className="bg-nexar-accent text-white px-6 py-2 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+                      >
+                        Adaugă Anunț Nou
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingListings.map(listing => (
+                        <div key={listing.id} className="bg-white border border-yellow-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+                          <div className="flex flex-col sm:flex-row">
+                            <div className="relative w-full sm:w-48 h-40 sm:h-auto">
+                              <img
+                                src={listing.images && listing.images[0] ? listing.images[0] : "https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg"}
+                                alt={listing.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.src = "https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg";
+                                }}
+                              />
+                              <div className="absolute top-2 left-2">
+                                <span className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                                  În așteptare
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex-1 p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.title}</h3>
+                                  <div className="text-xl font-bold text-nexar-accent mb-2">€{listing.price.toLocaleString()}</div>
+                                </div>
+                                
+                                <div className="flex items-center space-x-2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-lg">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="text-xs font-medium">În așteptare</span>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-3 gap-2 mb-4 text-sm">
+                                <div className="flex items-center space-x-1 text-gray-600">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{listing.year}</span>
+                                </div>
+                                <div className="flex items-center space-x-1 text-gray-600">
+                                  <MapPin className="h-4 w-4" />
+                                  <span>{listing.location}</span>
+                                </div>
+                                <div className="flex items-center space-x-1 text-gray-600">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{new Date(listing.created_at).toLocaleDateString('ro-RO')}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleEditListing(listing.id)}
+                                  className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-medium hover:bg-blue-200 transition-colors flex items-center space-x-1"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  <span>Editează</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteListing(listing.id)}
+                                  className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition-colors flex items-center space-x-1"
+                                >
+                                  <X className="h-4 w-4" />
+                                  <span>Șterge</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>

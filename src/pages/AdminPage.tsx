@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Users, Package, ChevronRight, User, Shield, 
   Check, X, Edit, Trash2, Eye, AlertTriangle, 
-  RefreshCw, Building, UserX, UserCheck, Search
+  RefreshCw, Building, UserX, UserCheck, Search,
+  Clock, CheckCircle, XCircle
 } from 'lucide-react';
 import { admin, supabase } from '../lib/supabase';
 import FixSupabaseButton from '../components/FixSupabaseButton';
@@ -15,9 +16,10 @@ const AdminPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [isSuspending, setIsSuspending] = useState<string | null>(null);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isProcessing, setIsProcessing] = useState<{ [key: string]: boolean }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -111,6 +113,8 @@ const AdminPage = () => {
 
   const handleUpdateListingStatus = async (listingId: string, status: string) => {
     try {
+      setIsProcessing(prev => ({ ...prev, [listingId]: true }));
+      
       const { error } = await admin.updateListingStatus(listingId, status);
       
       if (error) {
@@ -126,9 +130,13 @@ const AdminPage = () => {
         )
       );
       
+      alert(`Statusul anunțului a fost actualizat la "${status}".`);
+      
     } catch (err) {
       console.error('Error updating listing status:', err);
       alert('A apărut o eroare la actualizarea statusului.');
+    } finally {
+      setIsProcessing(prev => ({ ...prev, [listingId]: false }));
     }
   };
 
@@ -136,7 +144,7 @@ const AdminPage = () => {
     if (!confirm('Ești sigur că vrei să ștergi acest anunț?')) return;
     
     try {
-      setIsDeleting(listingId);
+      setIsProcessing(prev => ({ ...prev, [listingId]: true }));
       
       const { error } = await admin.deleteListing(listingId);
       
@@ -149,17 +157,19 @@ const AdminPage = () => {
       // Elimină anunțul din listă
       setListings(prev => prev.filter(listing => listing.id !== listingId));
       
+      alert('Anunțul a fost șters cu succes!');
+      
     } catch (err) {
       console.error('Error deleting listing:', err);
       alert('A apărut o eroare la ștergerea anunțului.');
     } finally {
-      setIsDeleting(null);
+      setIsProcessing(prev => ({ ...prev, [listingId]: false }));
     }
   };
 
   const handleToggleUserStatus = async (userId: string, suspended: boolean) => {
     try {
-      setIsSuspending(userId);
+      setIsProcessing(prev => ({ ...prev, [userId]: true }));
       
       const { error } = await admin.toggleUserStatus(userId, suspended);
       
@@ -176,11 +186,13 @@ const AdminPage = () => {
         )
       );
       
+      alert(`Utilizatorul a fost ${suspended ? 'suspendat' : 'activat'} cu succes!`);
+      
     } catch (err) {
       console.error('Error toggling user status:', err);
       alert(`A apărut o eroare la ${suspended ? 'suspendarea' : 'activarea'} utilizatorului.`);
     } finally {
-      setIsSuspending(null);
+      setIsProcessing(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -188,7 +200,7 @@ const AdminPage = () => {
     if (!confirm('ATENȚIE: Această acțiune va șterge utilizatorul și TOATE anunțurile asociate din baza de date. Contul de autentificare va rămâne activ din motive de securitate. Ești sigur că vrei să continui?')) return;
     
     try {
-      setIsDeleting(userId);
+      setIsProcessing(prev => ({ ...prev, [userId]: true }));
       
       // 1. Obținem profilul utilizatorului
       const { data: profile, error: profileError } = await supabase
@@ -200,7 +212,7 @@ const AdminPage = () => {
       if (profileError || !profile) {
         console.error('Error fetching user profile:', profileError);
         alert('Eroare la găsirea profilului utilizatorului');
-        setIsDeleting(null);
+        setIsProcessing(prev => ({ ...prev, [userId]: false }));
         return;
       }
       
@@ -213,7 +225,7 @@ const AdminPage = () => {
       if (listingsError) {
         console.error('Error deleting user listings:', listingsError);
         alert('Eroare la ștergerea anunțurilor utilizatorului');
-        setIsDeleting(null);
+        setIsProcessing(prev => ({ ...prev, [userId]: false }));
         return;
       }
       
@@ -226,11 +238,11 @@ const AdminPage = () => {
       if (deleteProfileError) {
         console.error('Error deleting user profile:', deleteProfileError);
         alert('Eroare la ștergerea profilului utilizatorului');
-        setIsDeleting(null);
+        setIsProcessing(prev => ({ ...prev, [userId]: false }));
         return;
       }
       
-      // Elimină utilizatorul din listă
+      // Eliminăm utilizatorul din listă
       setUsers(prev => prev.filter(user => user.user_id !== userId));
       
       // Reîncarcă și anunțurile pentru a reflecta ștergerea
@@ -242,7 +254,7 @@ const AdminPage = () => {
       console.error('Error deleting user:', err);
       alert('A apărut o eroare la ștergerea utilizatorului.');
     } finally {
-      setIsDeleting(null);
+      setIsProcessing(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -258,30 +270,26 @@ const AdminPage = () => {
     navigate(`/profil/${userId}`);
   };
 
+  // Filtrare anunțuri
   const filteredListings = listings.filter(listing => {
-    if (!searchQuery) return true;
+    // Filtrare după text
+    const matchesSearch = !searchQuery || 
+      listing.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.seller_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.model?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const query = searchQuery.toLowerCase();
-    return (
-      listing.title?.toLowerCase().includes(query) ||
-      listing.seller_name?.toLowerCase().includes(query) ||
-      listing.brand?.toLowerCase().includes(query) ||
-      listing.model?.toLowerCase().includes(query) ||
-      listing.location?.toLowerCase().includes(query) ||
-      listing.status?.toLowerCase().includes(query)
-    );
+    // Filtrare după status
+    const matchesStatus = statusFilter === 'all' || listing.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
   });
 
+  // Filtrare utilizatori
   const filteredUsers = users.filter(user => {
-    if (!searchQuery) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      user.name?.toLowerCase().includes(query) ||
-      user.email?.toLowerCase().includes(query) ||
-      user.location?.toLowerCase().includes(query) ||
-      user.seller_type?.toLowerCase().includes(query)
-    );
+    return !searchQuery || 
+      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   // Loading state
@@ -357,15 +365,31 @@ const AdminPage = () => {
 
           {/* Search Bar */}
           <div className="p-6 border-b border-gray-200">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`Caută ${activeTab === 'listings' ? 'anunțuri' : 'utilizatori'}...`}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-grow">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={`Caută ${activeTab === 'listings' ? 'anunțuri' : 'utilizatori'}...`}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              </div>
+              
+              {activeTab === 'listings' && (
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                >
+                  <option value="all">Toate statusurile</option>
+                  <option value="active">Active</option>
+                  <option value="pending">În așteptare</option>
+                  <option value="rejected">Respinse</option>
+                  <option value="sold">Vândute</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -441,7 +465,7 @@ const AdminPage = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredListings.map((listing) => (
-                      <tr key={listing.id} className="hover:bg-gray-50">
+                      <tr key={listing.id} className={`hover:bg-gray-50 ${listing.status === 'pending' ? 'bg-yellow-50' : ''}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="h-10 w-10 flex-shrink-0">
@@ -523,11 +547,11 @@ const AdminPage = () => {
                             </button>
                             <button
                               onClick={() => handleDeleteListing(listing.id)}
-                              disabled={isDeleting === listing.id}
+                              disabled={isProcessing[listing.id]}
                               className="text-red-600 hover:text-red-800 disabled:opacity-50"
                               title="Șterge anunțul"
                             >
-                              {isDeleting === listing.id ? (
+                              {isProcessing[listing.id] ? (
                                 <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                               ) : (
                                 <Trash2 className="h-5 w-5" />
@@ -535,31 +559,83 @@ const AdminPage = () => {
                             </button>
                             <div className="border-l border-gray-300 h-5 mx-2"></div>
                             <div className="flex space-x-1">
-                              {listing.status !== 'active' && (
+                              {/* Buton pentru aprobarea anunțurilor în așteptare */}
+                              {listing.status === 'pending' && (
                                 <button
                                   onClick={() => handleUpdateListingStatus(listing.id, 'active')}
-                                  className="bg-green-100 text-green-800 p-1 rounded hover:bg-green-200"
-                                  title="Activează"
+                                  disabled={isProcessing[listing.id]}
+                                  className="bg-green-100 text-green-800 p-1.5 rounded-lg hover:bg-green-200 transition-colors"
+                                  title="Aprobă anunțul"
                                 >
-                                  <Check className="h-4 w-4" />
+                                  {isProcessing[listing.id] ? (
+                                    <div className="h-5 w-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : (
+                                    <CheckCircle className="h-5 w-5" />
+                                  )}
                                 </button>
                               )}
-                              {listing.status !== 'rejected' && (
+                              
+                              {/* Buton pentru respingerea anunțurilor în așteptare */}
+                              {listing.status === 'pending' && (
                                 <button
                                   onClick={() => handleUpdateListingStatus(listing.id, 'rejected')}
-                                  className="bg-red-100 text-red-800 p-1 rounded hover:bg-red-200"
-                                  title="Respinge"
+                                  disabled={isProcessing[listing.id]}
+                                  className="bg-red-100 text-red-800 p-1.5 rounded-lg hover:bg-red-200 transition-colors"
+                                  title="Respinge anunțul"
                                 >
-                                  <X className="h-4 w-4" />
+                                  {isProcessing[listing.id] ? (
+                                    <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : (
+                                    <XCircle className="h-5 w-5" />
+                                  )}
                                 </button>
                               )}
+                              
+                              {/* Buton pentru activarea anunțurilor respinse */}
+                              {listing.status === 'rejected' && (
+                                <button
+                                  onClick={() => handleUpdateListingStatus(listing.id, 'active')}
+                                  disabled={isProcessing[listing.id]}
+                                  className="bg-green-100 text-green-800 p-1.5 rounded-lg hover:bg-green-200 transition-colors"
+                                  title="Activează anunțul"
+                                >
+                                  {isProcessing[listing.id] ? (
+                                    <div className="h-5 w-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : (
+                                    <CheckCircle className="h-5 w-5" />
+                                  )}
+                                </button>
+                              )}
+                              
+                              {/* Buton pentru dezactivarea anunțurilor active */}
+                              {listing.status === 'active' && (
+                                <button
+                                  onClick={() => handleUpdateListingStatus(listing.id, 'rejected')}
+                                  disabled={isProcessing[listing.id]}
+                                  className="bg-red-100 text-red-800 p-1.5 rounded-lg hover:bg-red-200 transition-colors"
+                                  title="Dezactivează anunțul"
+                                >
+                                  {isProcessing[listing.id] ? (
+                                    <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : (
+                                    <XCircle className="h-5 w-5" />
+                                  )}
+                                </button>
+                              )}
+                              
+                              {/* Buton pentru marcarea ca vândut */}
                               {listing.status !== 'sold' && (
                                 <button
                                   onClick={() => handleUpdateListingStatus(listing.id, 'sold')}
-                                  className="bg-blue-100 text-blue-800 p-1 rounded hover:bg-blue-200"
+                                  disabled={isProcessing[listing.id]}
+                                  className="bg-blue-100 text-blue-800 p-1.5 rounded-lg hover:bg-blue-200 transition-colors"
                                   title="Marchează ca vândut"
                                 >
-                                  <Check className="h-4 w-4" />
+                                  {isProcessing[listing.id] ? (
+                                    <div className="h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : (
+                                    <Check className="h-5 w-5" />
+                                  )}
                                 </button>
                               )}
                             </div>
@@ -622,7 +698,7 @@ const AdminPage = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50">
+                      <tr key={user.user_id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="h-10 w-10 flex-shrink-0">
@@ -637,7 +713,7 @@ const AdminPage = () => {
                                   }}
                                 />
                               ) : (
-                                <div className="h-10 w-10 rounded-full bg-nexar-accent flex items-center justify-center text-white font-semibold">
+                                <div className="h-10 w-10 rounded-full bg-nexar-accent flex items-center justify-center text-white font-semibold text-xs">
                                   {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                                 </div>
                               )}
@@ -698,13 +774,13 @@ const AdminPage = () => {
                               <>
                                 <button
                                   onClick={() => handleToggleUserStatus(user.user_id, !user.suspended)}
-                                  disabled={isSuspending === user.user_id}
+                                  disabled={isProcessing[user.user_id]}
                                   className={`${
                                     user.suspended ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'
                                   } disabled:opacity-50`}
                                   title={user.suspended ? 'Activează utilizatorul' : 'Suspendă utilizatorul'}
                                 >
-                                  {isSuspending === user.user_id ? (
+                                  {isProcessing[user.user_id] ? (
                                     <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                                   ) : user.suspended ? (
                                     <UserCheck className="h-5 w-5" />
@@ -714,11 +790,11 @@ const AdminPage = () => {
                                 </button>
                                 <button
                                   onClick={() => handleDeleteUser(user.user_id)}
-                                  disabled={isDeleting === user.user_id || user.is_admin}
+                                  disabled={isProcessing[user.user_id] || user.is_admin}
                                   className="text-red-600 hover:text-red-800 disabled:opacity-50"
                                   title={user.is_admin ? 'Nu poți șterge un administrator' : 'Șterge utilizatorul'}
                                 >
-                                  {isDeleting === user.user_id ? (
+                                  {isProcessing[user.user_id] ? (
                                     <div className="h-5 w-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                                   ) : (
                                     <Trash2 className="h-5 w-5" />

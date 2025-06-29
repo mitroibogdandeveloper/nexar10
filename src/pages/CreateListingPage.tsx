@@ -349,7 +349,7 @@ const CreateListingPage = () => {
         seller_id: userProfile.id,
         seller_name: userProfile.name || 'Utilizator',
         seller_type: userProfile.seller_type,
-        status: 'active' // Anunțul va fi activ imediat
+        status: 'pending' // Anunțul va fi în așteptare până la aprobarea de către admin
       };
       
       console.log('📝 Mapped listing data:', listingData);
@@ -1000,6 +1000,16 @@ const CreateListingPage = () => {
                 </div>
               </div>
               
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                <h4 className="font-semibold text-yellow-800 mb-4">Notă importantă:</h4>
+                <p className="text-yellow-700 mb-3">
+                  Anunțul tău va fi trimis spre aprobare administratorilor platformei. După verificare, acesta va fi publicat și va deveni vizibil pentru toți utilizatorii.
+                </p>
+                <p className="text-yellow-700">
+                  Vei putea vedea statusul anunțului tău în secțiunea "Anunțurile Mele" din profilul tău.
+                </p>
+              </div>
+              
               <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                 <h4 className="font-semibold text-green-800 mb-4">Rezumat anunț:</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -1063,11 +1073,11 @@ const CreateListingPage = () => {
                 {isSubmitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Se publică...</span>
+                    <span>Se trimite...</span>
                   </>
                 ) : (
                   <>
-                    <span>Publică Anunțul</span>
+                    <span>Trimite spre aprobare</span>
                     <Check className="h-5 w-5" />
                   </>
                 )}
@@ -1083,8 +1093,8 @@ const CreateListingPage = () => {
         onClose={handleSuccessModalClose}
         onGoHome={handleGoHome}
         onViewListing={handleViewListing}
-        title="Felicitări!"
-        message="Anunțul a fost publicat cu succes! Acum este vizibil pentru toți utilizatorii platformei."
+        title="Anunț trimis spre aprobare!"
+        message="Anunțul tău a fost trimis cu succes și este în așteptare pentru aprobare. Vei fi notificat când acesta va fi aprobat și publicat pe platformă."
         showViewButton={true}
       />
     </div>
