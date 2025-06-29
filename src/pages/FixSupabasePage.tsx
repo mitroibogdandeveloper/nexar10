@@ -373,6 +373,7 @@ BEGIN
   CREATE POLICY "listings_select" ON listings
     FOR SELECT USING (status = 'active');
 
+  -- FIXED: More permissive insert policy for authenticated users
   CREATE POLICY "listings_insert" ON listings
     FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
