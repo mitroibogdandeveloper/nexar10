@@ -778,15 +778,6 @@ const ProfilePage = () => {
                 )}
               </div>
             </div>
-
-            {/* Fix Connection Button */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Probleme cu încărcarea?</h3>
-              <p className="text-gray-600 mb-4 text-sm">
-                Dacă întâmpini probleme cu încărcarea anunțurilor sau a profilului, încearcă să repari conexiunea.
-              </p>
-              <FixSupabaseButton buttonText="Repară Conexiunea" />
-            </div>
           </div>
 
           {/* Main Content */}

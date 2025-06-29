@@ -724,16 +724,14 @@ export const listings = {
         .select()
       
       if (error) {
-        console.error('❌ Error updating listing:', error)
-        throw new Error(`Eroare la actualizarea anunțului: ${error.message}`)
+        throw error
       }
       
-      console.log('✅ Listing updated successfully:', id)
       return { data, error: null }
       
     } catch (error: any) {
-      console.error('💥 Error in listings.update:', error)
-      return { data: null, error: error }
+      console.error('Error updating listing:', error)
+      return { data: null, error }
     }
   },
 
@@ -1248,10 +1246,22 @@ export const isAuthenticated = async () => {
 }
 
 // Funcție pentru a verifica dacă Supabase este configurat corect
+export const checkSupabaseConnection = async () => {
+  try {
+    const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true })
+    return !error
+  } catch (e) {
+    console.error('Supabase connection error:', e)
+    return false
+  }
+}
+
+// Funcție pentru verificarea conexiunii cu diagnostice
 export const checkConnection = async () => {
   try {
     console.log('🔍 Testing Supabase connection...')
     
+    // Test 1: Verificăm dacă putem face o cerere simplă
     const { error } = await supabase
       .from('profiles')
       .select('count', { count: 'exact', head: true })
@@ -1260,60 +1270,56 @@ export const checkConnection = async () => {
       console.error('❌ Connection test failed:', error)
       
       // Analizăm eroarea pentru a oferi un mesaj mai util
-      let guidance = 'Verifică credențialele Supabase și conexiunea la internet.'
+      let guidance = 'Verifică conexiunea la internet și configurația Supabase.'
       let troubleshooting = [
         'Verifică dacă proiectul Supabase este activ',
-        'Asigură-te că URL-ul și cheia API sunt corecte',
-        'Verifică setările CORS în Supabase Dashboard'
+        'Verifică dacă URL-ul și cheia API sunt corecte',
+        'Asigură-te că politicile RLS sunt configurate corect'
       ]
       
       if (error.message.includes('Failed to fetch')) {
-        guidance = 'Eroare de rețea. Verifică conexiunea la internet sau dacă Supabase este accesibil.'
+        guidance = 'Problemă de rețea. Verifică conexiunea la internet.'
         troubleshooting = [
           'Verifică conexiunea la internet',
-          'Asigură-te că proiectul Supabase nu este în pauză',
-          'Verifică dacă există probleme cu serverele Supabase'
+          'Asigură-te că nu există restricții de firewall',
+          'Încearcă să reîmprospătezi pagina'
         ]
       } else if (error.message.includes('JWT')) {
-        guidance = 'Eroare de autentificare. Cheia API poate fi invalidă sau expirată.'
+        guidance = 'Problemă de autentificare. Încearcă să te deconectezi și să te reconectezi.'
         troubleshooting = [
-          'Verifică cheia API în Supabase Dashboard → Settings → API',
-          'Asigură-te că folosești cheia anonimă corectă',
-          'Încearcă să te deconectezi și să te reconectezi'
+          'Deconectează-te și reconectează-te',
+          'Șterge cookie-urile și cache-ul browserului',
+          'Verifică dacă cheia API este corectă'
         ]
-      } else if (error.message.includes('permission') || error.message.includes('policy')) {
-        guidance = 'Eroare de permisiuni. Politicile RLS pot fi configurate incorect.'
+      } else if (error.message.includes('permission denied')) {
+        guidance = 'Problemă de permisiuni. Verifică politicile RLS în Supabase.'
         troubleshooting = [
           'Verifică politicile RLS pentru tabela profiles',
-          'Asigură-te că utilizatorii anonimi pot citi datele necesare',
-          'Rulează migrația SQL pentru a repara politicile'
+          'Asigură-te că utilizatorul are permisiunile necesare',
+          'Contactează administratorul pentru asistență'
         ]
       }
       
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error.message,
         guidance,
         troubleshooting
       }
     }
     
-    console.log('✅ Connection test passed!')
-    return { 
+    console.log('✅ Connection test passed')
+    return {
       success: true,
       message: 'Conexiunea la Supabase funcționează corect'
     }
-  } catch (e) {
-    console.error('Supabase connection error:', e)
-    return { 
-      success: false, 
-      error: 'Eroare neașteptată la testarea conexiunii',
-      guidance: 'A apărut o eroare neașteptată. Încearcă să reîncarci pagina.',
-      troubleshooting: [
-        'Reîncarcă pagina',
-        'Șterge cache-ul browserului',
-        'Verifică consola pentru erori specifice'
-      ]
+    
+  } catch (err: any) {
+    console.error('💥 Error in checkConnection:', err)
+    return {
+      success: false,
+      error: err.message || 'Eroare necunoscută',
+      guidance: 'A apărut o eroare neașteptată. Încearcă să reîmprospătezi pagina.'
     }
   }
 }
