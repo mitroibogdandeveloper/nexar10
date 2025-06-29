@@ -13,6 +13,8 @@ import {
 	ChevronRight,
 	RefreshCw,
 	Users,
+	Shield,
+	Check,
 } from "lucide-react";
 import { listings, romanianCities } from "../lib/supabase";
 
