@@ -369,11 +369,11 @@ const CreateListingPage = () => {
       
       // Afișăm modal-ul de succes
       setShowSuccessModal(true);
+      setIsSubmitting(false);
       
     } catch (error: any) {
       console.error('💥 Error creating listing:', error);
       setErrors({ submit: error.message || 'A apărut o eroare la publicarea anunțului. Te rog încearcă din nou.' });
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -506,6 +506,7 @@ const CreateListingPage = () => {
                       errors.title ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="ex: Yamaha YZF-R1 2023"
+                    maxLength={100}
                   />
                   {errors.title && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -513,6 +514,9 @@ const CreateListingPage = () => {
                       {errors.title}
                     </p>
                   )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formData.title.length}/100 caractere
+                  </p>
                 </div>
                 
                 <div>

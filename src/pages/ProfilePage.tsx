@@ -36,6 +36,7 @@ const ProfilePage = () => {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [filteredCities, setFilteredCities] = useState<string[]>([]);
   const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Set a timeout to show an error message if loading takes too long
@@ -201,14 +202,18 @@ const ProfilePage = () => {
     try {
       if (!profile || !isCurrentUser) return;
       
+      setIsSubmitting(true);
+      
       // Validare
       if (!editedProfile.name.trim()) {
         alert('Numele este obligatoriu');
+        setIsSubmitting(false);
         return;
       }
       
       if (!editedProfile.email.trim()) {
         alert('Email-ul este obligatoriu');
+        setIsSubmitting(false);
         return;
       }
       
@@ -224,6 +229,7 @@ const ProfilePage = () => {
       if (error) {
         console.error('Error updating profile:', error);
         alert('Eroare la actualizarea profilului');
+        setIsSubmitting(false);
         return;
       }
       
@@ -255,6 +261,8 @@ const ProfilePage = () => {
     } catch (err) {
       console.error('Error saving profile:', err);
       alert('A apărut o eroare la salvarea profilului');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -602,9 +610,17 @@ const ProfilePage = () => {
                     <div className="flex space-x-3 pt-4">
                       <button
                         onClick={handleSaveProfile}
-                        className="flex-1 bg-nexar-accent text-white py-2 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
+                        disabled={isSubmitting}
+                        className="flex-1 bg-nexar-accent text-white py-2 rounded-lg font-semibold hover:bg-nexar-gold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Salvează
+                        {isSubmitting ? (
+                          <div className="flex items-center justify-center">
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            <span>Se salvează...</span>
+                          </div>
+                        ) : (
+                          'Salvează'
+                        )}
                       </button>
                       <button
                         onClick={handleCancelEdit}
@@ -873,7 +889,7 @@ const ProfilePage = () => {
                             <div className="flex-1 p-4">
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.brand} {listing.model}</h3>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.title}</h3>
                                   <div className="text-xl font-bold text-nexar-accent mb-2">€{listing.price.toLocaleString()}</div>
                                 </div>
                                 
@@ -997,7 +1013,7 @@ const ProfilePage = () => {
                             <div className="flex-1 p-4">
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.brand} {listing.model}</h3>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.title}</h3>
                                   <div className="text-xl font-bold text-nexar-accent mb-2">€{listing.price.toLocaleString()}</div>
                                 </div>
                                 

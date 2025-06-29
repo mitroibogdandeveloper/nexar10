@@ -607,7 +607,7 @@ export const listings = {
       // 1. Obținem anunțul curent pentru a păstra imaginile existente
       const { data: currentListing, error: fetchError } = await supabase
         .from('listings')
-        .select('images, seller_id, seller_name')
+        .select('images, seller_id, seller_name, status')
         .eq('id', id)
         .single()
       
@@ -687,7 +687,8 @@ export const listings = {
       const updateData = {
         ...updates,
         images: updatedImages,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        status: 'pending' // Setăm statusul la pending pentru a aștepta aprobarea modificărilor
       }
       
       console.log('📝 Updating listing with data:', {

@@ -491,10 +491,10 @@ const AdminPage = () => {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                                {listing.brand} {listing.model}
+                                {listing.title}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {listing.title}
+                                {listing.brand} {listing.model}
                               </div>
                             </div>
                           </div>

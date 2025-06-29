@@ -369,7 +369,7 @@ const HomePage = () => {
 						<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3">
 							<div>
 								<h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-nexar-accent transition-colors mb-2">
-									{listing.brand} {listing.model}
+									{listing.title}
 								</h3>
 								<div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
 									€{listing.price.toLocaleString()}
