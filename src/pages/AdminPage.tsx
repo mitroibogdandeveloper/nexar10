@@ -59,8 +59,19 @@ const AdminPage = () => {
       setIsLoading(true);
       setError(null);
       
-      // Folosim getAllForAdmin pentru a obține TOATE anunțurile, inclusiv cele în așteptare
-      const { data, error } = await admin.getAllListings();
+      // Folosim o interogare directă pentru a obține TOATE anunțurile, inclusiv cele în așteptare
+      const { data, error } = await supabase
+        .from('listings')
+        .select(`
+          *,
+          profiles!listings_seller_id_fkey (
+            name,
+            email,
+            seller_type,
+            verified
+          )
+        `)
+        .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Error loading listings:', error);

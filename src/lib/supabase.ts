@@ -724,14 +724,16 @@ export const listings = {
         .select()
       
       if (error) {
-        throw error
+        console.error('❌ Error updating listing:', error)
+        throw new Error(`Eroare la actualizarea anunțului: ${error.message}`)
       }
       
+      console.log('✅ Listing updated successfully:', id)
       return { data, error: null }
       
-    } catch (error: any) {
-      console.error('Error updating listing:', error)
-      return { data: null, error }
+    } catch (err: any) {
+      console.error('💥 Error in listings.update:', err)
+      return { data: null, error: err }
     }
   },
 
@@ -1256,74 +1258,6 @@ export const checkSupabaseConnection = async () => {
   }
 }
 
-// Funcție pentru verificarea conexiunii cu diagnostice
-export const checkConnection = async () => {
-  try {
-    console.log('🔍 Testing Supabase connection...')
-    
-    // Test 1: Verificăm dacă putem face o cerere simplă
-    const { error } = await supabase
-      .from('profiles')
-      .select('count', { count: 'exact', head: true })
-    
-    if (error) {
-      console.error('❌ Connection test failed:', error)
-      
-      // Analizăm eroarea pentru a oferi un mesaj mai util
-      let guidance = 'Verifică conexiunea la internet și configurația Supabase.'
-      let troubleshooting = [
-        'Verifică dacă proiectul Supabase este activ',
-        'Verifică dacă URL-ul și cheia API sunt corecte',
-        'Asigură-te că politicile RLS sunt configurate corect'
-      ]
-      
-      if (error.message.includes('Failed to fetch')) {
-        guidance = 'Problemă de rețea. Verifică conexiunea la internet.'
-        troubleshooting = [
-          'Verifică conexiunea la internet',
-          'Asigură-te că nu există restricții de firewall',
-          'Încearcă să reîmprospătezi pagina'
-        ]
-      } else if (error.message.includes('JWT')) {
-        guidance = 'Problemă de autentificare. Încearcă să te deconectezi și să te reconectezi.'
-        troubleshooting = [
-          'Deconectează-te și reconectează-te',
-          'Șterge cookie-urile și cache-ul browserului',
-          'Verifică dacă cheia API este corectă'
-        ]
-      } else if (error.message.includes('permission denied')) {
-        guidance = 'Problemă de permisiuni. Verifică politicile RLS în Supabase.'
-        troubleshooting = [
-          'Verifică politicile RLS pentru tabela profiles',
-          'Asigură-te că utilizatorul are permisiunile necesare',
-          'Contactează administratorul pentru asistență'
-        ]
-      }
-      
-      return {
-        success: false,
-        error: error.message,
-        guidance,
-        troubleshooting
-      }
-    }
-    
-    console.log('✅ Connection test passed')
-    return {
-      success: true,
-      message: 'Conexiunea la Supabase funcționează corect'
-    }
-    
-  } catch (err: any) {
-    console.error('💥 Error in checkConnection:', err)
-    return {
-      success: false,
-      error: err.message || 'Eroare necunoscută',
-      guidance: 'A apărut o eroare neașteptată. Încearcă să reîmprospătezi pagina.'
-    }
-  }
-}
-
 // Funcție pentru testarea conexiunii complete
 export const testConnection = async () => {
   try {
@@ -1485,5 +1419,53 @@ export const fixCurrentUserProfile = async () => {
   } catch (err) {
     console.error('💥 Error in fixCurrentUserProfile:', err)
     return { success: false, error: 'Unexpected error during repair' }
+  }
+}
+
+// Funcție pentru a verifica conexiunea
+export const checkConnection = async () => {
+  try {
+    console.log('🔍 Checking Supabase connection...')
+    
+    // Test 1: Conexiunea de bază
+    const { error: healthError } = await supabase
+      .from('profiles')
+      .select('count', { count: 'exact', head: true })
+    
+    if (healthError) {
+      console.error('❌ Connection check failed:', healthError)
+      
+      return { 
+        success: false, 
+        error: healthError.message,
+        guidance: 'Conexiunea la Supabase a eșuat. Verifică credențialele și configurația.',
+        troubleshooting: [
+          '1. Verifică dacă proiectul Supabase este activ',
+          '2. Verifică dacă URL-ul și cheia API sunt corecte',
+          '3. Verifică setările CORS în Supabase Dashboard',
+          '4. Asigură-te că politicile RLS sunt configurate corect'
+        ]
+      }
+    }
+    
+    console.log('✅ Connection check passed')
+    return { 
+      success: true, 
+      message: 'Conexiunea la Supabase funcționează corect'
+    }
+    
+  } catch (err: any) {
+    console.error('❌ Connection check error:', err)
+    
+    return { 
+      success: false, 
+      error: err.message || 'Eroare necunoscută',
+      guidance: 'A apărut o eroare neașteptată la verificarea conexiunii.',
+      troubleshooting: [
+        '1. Verifică conexiunea la internet',
+        '2. Asigură-te că Supabase este accesibil',
+        '3. Verifică consola browser-ului pentru mai multe detalii'
+      ]
+    }
   }
 }
