@@ -185,7 +185,7 @@ const AdminPage = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('ATENȚIE: Această acțiune va șterge utilizatorul și TOATE anunțurile asociate. Ești sigur că vrei să continui?')) return;
+    if (!confirm('ATENȚIE: Această acțiune va șterge utilizatorul și TOATE anunțurile asociate din baza de date. Contul de autentificare va rămâne activ din motive de securitate. Ești sigur că vrei să continui?')) return;
     
     try {
       setIsDeleting(userId);
@@ -230,28 +230,13 @@ const AdminPage = () => {
         return;
       }
       
-      // 4. Încercăm să ștergem utilizatorul din auth
-      try {
-        // Această operațiune necesită drepturi de admin în Supabase
-        // Poate eșua dacă nu avem permisiunile necesare
-        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-        
-        if (authError) {
-          console.warn('Could not delete auth user (requires admin rights):', authError);
-          // Nu afișăm eroarea utilizatorului, deoarece am șters deja profilul și anunțurile
-        }
-      } catch (authError) {
-        console.warn('Error deleting auth user:', authError);
-        // Nu afișăm eroarea utilizatorului, deoarece am șters deja profilul și anunțurile
-      }
-      
       // Elimină utilizatorul din listă
       setUsers(prev => prev.filter(user => user.user_id !== userId));
       
       // Reîncarcă și anunțurile pentru a reflecta ștergerea
       await loadListings();
       
-      alert('Utilizatorul și toate anunțurile asociate au fost șterse cu succes!');
+      alert('Utilizatorul și toate anunțurile asociate au fost șterse cu succes din baza de date!');
       
     } catch (err) {
       console.error('Error deleting user:', err);
