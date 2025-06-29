@@ -376,8 +376,11 @@ const ListingDetailPage = () => {
 							<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6">
 								<div className="mb-4 sm:mb-0">
 									<h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-										{listing.brand} {listing.model}
+										{listing.title}
 									</h1>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
+                    {listing.brand} {listing.model}
+                  </h2>
 									<div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-gray-600 text-sm">
 										<span className="flex items-center space-x-1">
 											<Calendar className="h-4 w-4" />

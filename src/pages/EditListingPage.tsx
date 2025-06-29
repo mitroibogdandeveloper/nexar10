@@ -40,22 +40,6 @@ const EditListingPage = () => {
     email: ''
   });
 
-  const categories = ['Sport', 'Touring', 'Cruiser', 'Adventure', 'Naked', 'Scooter', 'Enduro', 'Chopper'];
-  const brands = [
-    'Yamaha', 'Honda', 'Suzuki', 'Kawasaki', 'BMW', 'Ducati', 'KTM', 'Aprilia', 
-    'Triumph', 'Harley-Davidson', 'MV Agusta', 'Benelli', 'Moto Guzzi', 'Indian',
-    'Zero', 'Energica', 'Husqvarna', 'Beta', 'Sherco', 'GasGas'
-  ];
-  const fuelTypes = ['Benzină', 'Electric', 'Hibrid'];
-  const transmissionTypes = ['Manual', 'Automat', 'Semi-automat'];
-  const conditions = ['Nouă', 'Excelentă', 'Foarte bună', 'Bună', 'Satisfăcătoare'];
-  const availableFeatures = [
-    'ABS', 'Control tracțiune', 'Suspensie reglabilă', 'Frâne Brembo',
-    'Quickshifter', 'Sistem de navigație', 'Încălzire mânere', 'LED complet',
-    'Bluetooth', 'USB', 'Geantă laterală', 'Parbriz reglabil',
-    'Scaun încălzit', 'Tempomat', 'Sistem anti-furt', 'Jante aliaj'
-  ];
-
   useEffect(() => {
     loadListing();
   }, [id]);
@@ -323,6 +307,8 @@ const EditListingPage = () => {
     const newErrors: Record<string, string> = {};
     
     if (!formData.title.trim()) newErrors.title = 'Titlul este obligatoriu';
+    if (formData.title.length > 100) newErrors.title = 'Titlul nu poate depăși 100 de caractere';
+    
     if (!formData.price) newErrors.price = 'Prețul este obligatoriu';
     
     // Descrierea nu mai este obligatorie
@@ -468,11 +454,11 @@ const EditListingPage = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <button
-            onClick={() => navigate('/profil')}
+            onClick={() => isAdmin ? navigate('/admin') : navigate('/profil')}
             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
-            <span>Înapoi la profil</span>
+            <span>{isAdmin ? 'Înapoi la Admin Panel' : 'Înapoi la profil'}</span>
           </button>
         </div>
 
@@ -497,6 +483,7 @@ const EditListingPage = () => {
                       errors.title ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="ex: Yamaha YZF-R1 2023"
+                    maxLength={100}
                   />
                   {errors.title && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -504,6 +491,9 @@ const EditListingPage = () => {
                       {errors.title}
                     </p>
                   )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formData.title.length}/100 caractere
+                  </p>
                 </div>
                 
                 <div>
@@ -518,9 +508,14 @@ const EditListingPage = () => {
                     }`}
                   >
                     <option value="">Selectează categoria</option>
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
+                    <option value="Sport">Sport</option>
+                    <option value="Touring">Touring</option>
+                    <option value="Cruiser">Cruiser</option>
+                    <option value="Adventure">Adventure</option>
+                    <option value="Naked">Naked</option>
+                    <option value="Scooter">Scooter</option>
+                    <option value="Enduro">Enduro</option>
+                    <option value="Chopper">Chopper</option>
                   </select>
                   {errors.category && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -542,9 +537,26 @@ const EditListingPage = () => {
                     }`}
                   >
                     <option value="">Selectează marca</option>
-                    {brands.map(brand => (
-                      <option key={brand} value={brand}>{brand}</option>
-                    ))}
+                    <option value="Yamaha">Yamaha</option>
+                    <option value="Honda">Honda</option>
+                    <option value="BMW">BMW</option>
+                    <option value="Ducati">Ducati</option>
+                    <option value="KTM">KTM</option>
+                    <option value="Suzuki">Suzuki</option>
+                    <option value="Harley-Davidson">Harley-Davidson</option>
+                    <option value="Kawasaki">Kawasaki</option>
+                    <option value="Triumph">Triumph</option>
+                    <option value="Aprilia">Aprilia</option>
+                    <option value="MV Agusta">MV Agusta</option>
+                    <option value="Benelli">Benelli</option>
+                    <option value="Moto Guzzi">Moto Guzzi</option>
+                    <option value="Indian">Indian</option>
+                    <option value="Zero">Zero</option>
+                    <option value="Energica">Energica</option>
+                    <option value="Husqvarna">Husqvarna</option>
+                    <option value="Beta">Beta</option>
+                    <option value="Sherco">Sherco</option>
+                    <option value="GasGas">GasGas</option>
                   </select>
                   {errors.brand && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -656,9 +668,9 @@ const EditListingPage = () => {
                     }`}
                   >
                     <option value="">Selectează combustibilul</option>
-                    {fuelTypes.map(fuel => (
-                      <option key={fuel} value={fuel}>{fuel}</option>
-                    ))}
+                    <option value="Benzină">Benzină</option>
+                    <option value="Electric">Electric</option>
+                    <option value="Hibrid">Hibrid</option>
                   </select>
                   {errors.fuel_type && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -680,9 +692,9 @@ const EditListingPage = () => {
                     }`}
                   >
                     <option value="">Selectează transmisia</option>
-                    {transmissionTypes.map(trans => (
-                      <option key={trans} value={trans}>{trans}</option>
-                    ))}
+                    <option value="Manual">Manual</option>
+                    <option value="Automat">Automat</option>
+                    <option value="Semi-automat">Semi-automat</option>
                   </select>
                   {errors.transmission && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -725,9 +737,11 @@ const EditListingPage = () => {
                     }`}
                   >
                     <option value="">Selectează starea</option>
-                    {conditions.map(condition => (
-                      <option key={condition} value={condition}>{condition}</option>
-                    ))}
+                    <option value="Nouă">Nouă</option>
+                    <option value="Excelentă">Excelentă</option>
+                    <option value="Foarte bună">Foarte bună</option>
+                    <option value="Bună">Bună</option>
+                    <option value="Satisfăcătoare">Satisfăcătoare</option>
                   </select>
                   {errors.condition && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -918,7 +932,10 @@ const EditListingPage = () => {
                   Dotări și caracteristici
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {availableFeatures.map(feature => (
+                  {['ABS', 'Control tracțiune', 'Suspensie reglabilă', 'Frâne Brembo',
+                    'Quickshifter', 'Sistem de navigație', 'Încălzire mânere', 'LED complet',
+                    'Bluetooth', 'USB', 'Geantă laterală', 'Parbriz reglabil',
+                    'Scaun încălzit', 'Tempomat', 'Sistem anti-furt', 'Jante aliaj'].map(feature => (
                     <label key={feature} className="flex items-center space-x-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -936,7 +953,7 @@ const EditListingPage = () => {
             <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
               <button
                 type="button"
-                onClick={() => navigate('/profil')}
+                onClick={() => isAdmin ? navigate('/admin') : navigate('/profil')}
                 className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
               >
                 Anulează
@@ -966,7 +983,7 @@ const EditListingPage = () => {
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        onGoHome={() => navigate('/profil')}
+        onGoHome={() => isAdmin ? navigate('/admin') : navigate('/profil')}
         onViewListing={() => navigate(`/anunt/${id}`)}
         title="Succes!"
         message="Anunțul a fost actualizat cu succes!"

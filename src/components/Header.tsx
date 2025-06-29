@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-	User, Plus, Menu, X, Bell, LogOut
+	User, Plus, Menu, X, LogOut
 } from 'lucide-react';
 import { auth, checkSupabaseConnection, supabase, admin } from '../lib/supabase';
 
@@ -365,14 +365,6 @@ const Header = () => {
                         onClick={() => setIsUserMenuOpen(false)}
                       >
                         Profilul Meu
-                      </Link>
-                      <Link
-                        to="/notificari"
-                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <Bell className="h-4 w-4" />
-                        <span>Notificări</span>
                       </Link>
                       {isAdmin && (
                         <Link

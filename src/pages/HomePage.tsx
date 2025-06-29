@@ -13,7 +13,6 @@ import {
 	ChevronRight,
 	RefreshCw,
 	Users,
-	Shield,
 	Check,
 } from "lucide-react";
 import { listings, romanianCities } from "../lib/supabase";
@@ -37,7 +36,7 @@ const HomePage = () => {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const navigate = useNavigate();
-	const itemsPerPage = 6; // Show 6 listings per page
+	const itemsPerPage = 10; // Show 10 listings per page
 
 	// Load real listings from Supabase
 	useEffect(() => {
@@ -464,12 +463,6 @@ const HomePage = () => {
 						</div>
 
 						<div className="flex flex-col sm:flex-row gap-3 justify-center">
-							<Link
-								to="/anunturi"
-								className="bg-nexar-accent/90 backdrop-blur-sm text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-nexar-gold transition-all duration-200 transform hover:scale-105 shadow-lg border border-nexar-accent/30 text-sm"
-							>
-								Explorează Anunțurile
-							</Link>
 							<Link
 								to="/adauga-anunt"
 								className="bg-white/90 backdrop-blur-sm text-gray-900 px-5 py-2.5 rounded-lg font-semibold hover:bg-white transition-all duration-200 transform hover:scale-105 shadow-lg border border-white/30 text-sm"
@@ -1147,7 +1140,7 @@ const HomePage = () => {
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						<div className="bg-white p-6 rounded-lg shadow-sm text-center hover:shadow-md transition-shadow border border-gray-200">
 							<div className="inline-flex items-center justify-center w-12 h-12 bg-nexar-accent/10 rounded-lg mb-4">
-								<Shield className="h-6 w-6 text-nexar-accent" />
+								<Check className="h-6 w-6 text-nexar-accent" />
 							</div>
 							<h3 className="text-lg font-bold text-gray-900 mb-3">
 								Siguranță Garantată

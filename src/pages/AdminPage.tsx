@@ -532,6 +532,19 @@ const AdminPage = () => {
                              listing.status === 'pending' ? 'În așteptare' :
                              'Respins'}
                           </span>
+                          <div className="mt-2">
+                            <select 
+                              className="text-xs border border-gray-300 rounded px-2 py-1"
+                              value={listing.status}
+                              onChange={(e) => handleUpdateListingStatus(listing.id, e.target.value)}
+                              disabled={isProcessing[listing.id]}
+                            >
+                              <option value="active">Activ</option>
+                              <option value="pending">În așteptare</option>
+                              <option value="rejected">Respins</option>
+                              <option value="sold">Vândut</option>
+                            </select>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           €{listing.price.toLocaleString()}
