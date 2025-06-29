@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Users, Package, User, Shield, 
   Check, X, Edit, Trash2, Eye, AlertTriangle, 
-  RefreshCw, Building, UserCheck, Search,
+  RefreshCw, Building, UserX, UserCheck, Search,
   CheckCircle, XCircle
 } from 'lucide-react';
 import { admin, supabase } from '../lib/supabase';
@@ -175,6 +175,97 @@ const AdminPage = () => {
       alert('A apărut o eroare la ștergerea anunțului.');
     } finally {
       setIsProcessing(prev => ({ ...prev, [listingId]: false }));
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: string, suspended: boolean) => {
+    try {
+      setIsProcessing(prev => ({ ...prev, [userId]: true }));
+      
+      const { error } = await admin.toggleUserStatus(userId, suspended);
+      
+      if (error) {
+        console.error('Error toggling user status:', error);
+        alert(`Eroare la ${suspended ? 'suspendarea' : 'activarea'} utilizatorului: ${error.message}`);
+        return;
+      }
+      
+      // Actualizează lista de utilizatori
+      setUsers(prev => 
+        prev.map(user => 
+          user.user_id === userId ? { ...user, suspended } : user
+        )
+      );
+      
+      alert(`Utilizatorul a fost ${suspended ? 'suspendat' : 'activat'} cu succes!`);
+      
+    } catch (err) {
+      console.error('Error toggling user status:', err);
+      alert(`A apărut o eroare la ${suspended ? 'suspendarea' : 'activarea'} utilizatorului.`);
+    } finally {
+      setIsProcessing(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('ATENȚIE: Această acțiune va șterge utilizatorul și TOATE anunțurile asociate din baza de date. Contul de autentificare va rămâne activ din motive de securitate. Ești sigur că vrei să continui?')) return;
+    
+    try {
+      setIsProcessing(prev => ({ ...prev, [userId]: true }));
+      
+      // 1. Obținem profilul utilizatorului
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+      
+      if (profileError || !profile) {
+        console.error('Error fetching user profile:', profileError);
+        alert('Eroare la găsirea profilului utilizatorului');
+        setIsProcessing(prev => ({ ...prev, [userId]: false }));
+        return;
+      }
+      
+      // 2. Ștergem toate anunțurile utilizatorului
+      const { error: listingsError } = await supabase
+        .from('listings')
+        .delete()
+        .eq('seller_id', profile.id);
+      
+      if (listingsError) {
+        console.error('Error deleting user listings:', listingsError);
+        alert('Eroare la ștergerea anunțurilor utilizatorului');
+        setIsProcessing(prev => ({ ...prev, [userId]: false }));
+        return;
+      }
+      
+      // 3. Ștergem profilul utilizatorului
+      const { error: deleteProfileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (deleteProfileError) {
+        console.error('Error deleting user profile:', deleteProfileError);
+        alert('Eroare la ștergerea profilului utilizatorului');
+        setIsProcessing(prev => ({ ...prev, [userId]: false }));
+        return;
+      }
+      
+      // Eliminăm utilizatorul din listă
+      setUsers(prev => prev.filter(user => user.user_id !== userId));
+      
+      // Reîncarcă și anunțurile pentru a reflecta ștergerea
+      await loadListings();
+      
+      alert('Utilizatorul și toate anunțurile asociate au fost șterse cu succes din baza de date!');
+      
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      alert('A apărut o eroare la ștergerea utilizatorului.');
+    } finally {
+      setIsProcessing(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -672,6 +763,22 @@ const AdminPage = () => {
                             </button>
                             {!user.is_admin && (
                               <>
+                                <button
+                                  onClick={() => handleToggleUserStatus(user.user_id, !user.suspended)}
+                                  disabled={isProcessing[user.user_id]}
+                                  className={`${
+                                    user.suspended ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'
+                                  } disabled:opacity-50`}
+                                  title={user.suspended ? 'Activează utilizatorul' : 'Suspendă utilizatorul'}
+                                >
+                                  {isProcessing[user.user_id] ? (
+                                    <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                  ) : user.suspended ? (
+                                    <UserCheck className="h-5 w-5" />
+                                  ) : (
+                                    <UserX className="h-5 w-5" />
+                                  )}
+                                </button>
                                 <button
                                   onClick={() => handleDeleteUser(user.user_id)}
                                   disabled={isProcessing[user.user_id] || user.is_admin}
