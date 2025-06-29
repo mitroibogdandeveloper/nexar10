@@ -230,7 +230,7 @@ const ListingDetailPage = () => {
 					</p>
 					<div className="flex flex-col sm:flex-row gap-4">
 						<Link
-							to="/anunturi"
+							to="/"
 							className="bg-nexar-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-nexar-gold transition-colors"
 						>
 							Vezi toate anunțurile

@@ -247,7 +247,7 @@ const ProfilePage = () => {
       }
       
       // Actualizăm profilul local
-      setProfile(data);
+      setProfile(data ? data[0] : editedProfile);
       setIsEditing(false);
       
       // Resetăm starea

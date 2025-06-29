@@ -333,16 +333,6 @@ const Header = () => {
           {/* Navigation - Desktop */}
           <nav className="hidden lg:flex items-center space-x-1">
             <Link
-              to="/anunturi"
-              className={`px-3 xl:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm ${
-                isActive('/anunturi')
-                  ? 'bg-nexar-accent text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Anunțuri
-            </Link>
-            <Link
               to="/adauga-anunt"
               className="flex items-center space-x-2 bg-nexar-accent text-white px-3 xl:px-4 py-2 rounded-lg font-medium hover:bg-nexar-gold transition-all duration-200 text-sm"
             >
@@ -412,13 +402,6 @@ const Header = () => {
         {isMenuOpen && (
           <div className="lg:hidden py-4 border-t border-gray-200 animate-slide-up bg-white/95 backdrop-blur-md">
             <div className="space-y-2">
-              <Link
-                to="/anunturi"
-                className="block px-4 py-3 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Anunțuri
-              </Link>
               <Link
                 to="/adauga-anunt"
                 className="flex items-center space-x-2 px-4 py-3 bg-nexar-accent text-white rounded-lg font-medium mx-0"

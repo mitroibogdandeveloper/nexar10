@@ -37,7 +37,8 @@ const EditListingPage = () => {
     color: '',
     features: [] as string[],
     phone: '',
-    email: ''
+    email: '',
+    status: ''
   });
 
   useEffect(() => {
@@ -117,7 +118,8 @@ const EditListingPage = () => {
         color: listingData.color || '',
         features: listingData.features || [],
         phone: '',
-        email: ''
+        email: '',
+        status: listingData.status || 'pending'
       });
 
     } catch (err) {
@@ -391,7 +393,9 @@ const EditListingPage = () => {
         condition: mapValueForDatabase('condition', formData.condition),
         color: formData.color.trim(),
         features: formData.features,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        // Dacă este admin, păstrăm statusul selectat, altfel setăm la pending
+        status: isAdmin ? formData.status : 'pending'
       };
       
       // Actualizăm anunțul
@@ -796,6 +800,25 @@ const EditListingPage = () => {
                     </p>
                   )}
                 </div>
+
+                {/* Status field - only for admin */}
+                {isAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status *
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => handleInputChange('status', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                    >
+                      <option value="active">Activ</option>
+                      <option value="pending">În așteptare</option>
+                      <option value="rejected">Respins</option>
+                      <option value="sold">Vândut</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -986,7 +1009,9 @@ const EditListingPage = () => {
         onGoHome={() => isAdmin ? navigate('/admin') : navigate('/profil')}
         onViewListing={() => navigate(`/anunt/${id}`)}
         title="Succes!"
-        message="Anunțul a fost actualizat cu succes!"
+        message={isAdmin 
+          ? "Anunțul a fost actualizat cu succes!" 
+          : "Anunțul a fost actualizat cu succes și a fost trimis spre aprobare. Va fi vizibil după ce va fi aprobat de administratori."}
         showViewButton={true}
       />
     </div>

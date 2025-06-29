@@ -688,7 +688,7 @@ export const listings = {
         ...updates,
         images: updatedImages,
         updated_at: new Date().toISOString(),
-        status: 'pending' // Setăm statusul la pending pentru a aștepta aprobarea modificărilor
+        status: updates.status || 'pending' // Setăm statusul la pending pentru a aștepta aprobarea modificărilor
       }
       
       console.log('📝 Updating listing with data:', {

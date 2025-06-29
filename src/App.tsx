@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
-import ListingsPage from './pages/ListingsPage';
 import ListingDetailPage from './pages/ListingDetailPage';
 import CreateListingPage from './pages/CreateListingPage';
 import EditListingPage from './pages/EditListingPage';
@@ -39,7 +38,6 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/anunturi" element={<ListingsPage />} />
             <Route path="/anunt/:id" element={<ListingDetailPage />} />
             <Route path="/adauga-anunt" element={<CreateListingPage />} />
             <Route path="/editeaza-anunt/:id" element={<EditListingPage />} />

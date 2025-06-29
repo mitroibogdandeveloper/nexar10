@@ -14,8 +14,9 @@ import {
 	RefreshCw,
 	Users,
 	Check,
+	User,
 } from "lucide-react";
-import { listings, romanianCities } from "../lib/supabase";
+import { listings, romanianCities, supabase } from "../lib/supabase";
 
 const HomePage = () => {
 	const [searchParams] = useSearchParams();
@@ -185,50 +186,42 @@ const HomePage = () => {
 		{
 			name: "Sport",
 			count: "245 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/2393821/pexels-photo-2393821.jpeg",
 		},
 		{
 			name: "Touring",
 			count: "189 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg",
 		},
 		{
 			name: "Cruiser",
 			count: "156 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/1413412/pexels-photo-1413412.jpeg",
 		},
 		{
 			name: "Adventure",
 			count: "203 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/163210/motorcycle-racer-racing-race-163210.jpeg",
 		},
 		{
 			name: "Naked",
 			count: "178 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/1715193/pexels-photo-1715193.jpeg",
 		},
 		{
 			name: "Enduro",
 			count: "142 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/2611690/pexels-photo-2611690.jpeg",
 		},
 		{
 			name: "Scooter",
 			count: "134 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/5214413/pexels-photo-5214413.jpeg",
 		},
 		{
 			name: "Chopper",
 			count: "98 anunțuri",
-			image:
-				"https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg",
+			image: "https://images.pexels.com/photos/595807/pexels-photo-595807.jpeg",
 		},
 	];
 
@@ -237,6 +230,28 @@ const HomePage = () => {
 		const touchStartX = useRef<number>(0);
 		const touchEndX = useRef<number>(0);
 		const imageContainerRef = useRef<HTMLDivElement>(null);
+		const [sellerAvatar, setSellerAvatar] = useState<string | null>(null);
+
+		useEffect(() => {
+			// Fetch seller profile to get avatar
+			const fetchSellerProfile = async () => {
+				try {
+					const { data, error } = await supabase
+						.from('profiles')
+						.select('avatar_url')
+						.eq('id', listing.sellerId)
+						.single();
+					
+					if (!error && data) {
+						setSellerAvatar(data.avatar_url);
+					}
+				} catch (err) {
+					console.error('Error fetching seller avatar:', err);
+				}
+			};
+			
+			fetchSellerProfile();
+		}, [listing.sellerId]);
 
 		// Handle touch events for mobile swipe
 		const handleTouchStart = (e: React.TouchEvent) => {
@@ -377,11 +392,31 @@ const HomePage = () => {
 
 								{/* EVIDENȚIERE DEALER MULT MAI PRONUNȚATĂ */}
 								<div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-									<div className="text-sm text-gray-600">
-										Vândut de:
-										<button
+									<div className="flex items-center space-x-2 text-sm text-gray-600">
+										<div className="flex-shrink-0 w-6 h-6 rounded-full overflow-hidden border border-gray-200">
+											{sellerAvatar ? (
+												<img 
+													src={sellerAvatar} 
+													alt={listing.seller}
+													className="w-full h-full object-cover"
+													onError={(e) => {
+														const target = e.currentTarget as HTMLImageElement;
+														target.style.display = 'none';
+														const parent = target.parentElement;
+														if (parent) {
+															parent.innerHTML = `<div class="w-full h-full bg-nexar-accent flex items-center justify-center text-white text-xs font-bold">${listing.seller.charAt(0).toUpperCase()}</div>`;
+														}
+													}}
+												/>
+											) : (
+												<div className="w-full h-full bg-nexar-accent flex items-center justify-center text-white text-xs font-bold">
+													{listing.seller.charAt(0).toUpperCase()}
+												</div>
+											)}
+										</div>
+										<button 
 											onClick={handleSellerClick}
-											className="font-semibold text-nexar-accent hover:text-nexar-gold transition-colors ml-1 underline"
+											className="font-semibold text-nexar-accent hover:text-nexar-gold transition-colors underline"
 										>
 											{listing.seller}
 										</button>
@@ -398,6 +433,7 @@ const HomePage = () => {
 										</div>
 									) : (
 										<div className="inline-flex items-center space-x-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white px-3 py-1.5 rounded-full shadow-md">
+											<User className="h-3 w-3" />
 											<span className="font-semibold text-xs">PRIVAT</span>
 										</div>
 									)}
