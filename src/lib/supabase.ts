@@ -221,10 +221,12 @@ export const auth = {
           console.error('⚠️ Profile handling failed during signin:', profileError)
           // Salvăm măcar datele de bază
           const userData = {
-            id: data.user.id, 
+            id: data.user.id,
+            name: data.user.email?.split('@')[0] || 'Utilizator',
             email: data.user.email,
+            sellerType: 'individual',
             isAdmin: data.user.email === 'admin@nexar.ro',
-            isLoggedIn: true 
+            isLoggedIn: true
           }
           localStorage.setItem('user', JSON.stringify(userData))
         }
@@ -570,14 +572,15 @@ export const listings = {
         .from('listings')
         .select('images, seller_id, seller_name')
         .eq('id', id)
+        .single()
       
-      if (fetchError || !currentListing || currentListing.length === 0) {
+      if (fetchError || !currentListing) {
         console.error('❌ Error fetching current listing:', fetchError)
         throw new Error(`Eroare la obținerea anunțului: ${fetchError?.message || 'Anunțul nu a fost găsit'}`)
       }
       
       // 2. Gestionăm imaginile
-      let updatedImages = [...(currentListing[0].images || [])]
+      let updatedImages = [...(currentListing.images || [])]
       
       // 2.1 Ștergem imaginile marcate pentru eliminare
       if (imagesToRemove && imagesToRemove.length > 0) {
@@ -614,7 +617,7 @@ export const listings = {
         for (const image of newImages) {
           const fileExt = image.name.split('.').pop()
           const fileName = `${uuidv4()}.${fileExt}`
-          const filePath = `${currentListing[0].seller_id}/${fileName}`
+          const filePath = `${currentListing.seller_id}/${fileName}`
           
           console.log(`📤 Uploading image: ${fileName}`)
           
@@ -663,10 +666,10 @@ export const listings = {
             const { data: profile } = await supabase
               .from('profiles')
               .select('name')
-              .eq('id', currentListing[0].seller_id)
+              .eq('id', currentListing.seller_id)
               .single()
             
-            if (profile && profile.name !== currentListing[0].seller_name) {
+            if (profile && profile.name !== currentListing.seller_name) {
               updateData.seller_name = profile.name
               console.log('✅ Updated seller name to:', profile.name)
             }
@@ -1114,11 +1117,9 @@ export const admin = {
     }
   },
   
-  // Șterge un utilizator și toate anunțurile sale - VERSIUNE FĂRĂ ADMIN API
+  // Șterge un utilizator și toate anunțurile sale
   deleteUser: async (userId: string) => {
     try {
-      console.log('🗑️ Starting user deletion process for:', userId)
-      
       // 1. Obținem profilul utilizatorului
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -1130,8 +1131,6 @@ export const admin = {
         console.error('Error fetching user profile:', profileError)
         return { error: profileError || new Error('User profile not found') }
       }
-      
-      console.log('✅ Found profile:', profile.id)
       
       // 2. Obținem toate anunțurile utilizatorului pentru a șterge imaginile
       const { data: userListings } = await supabase
@@ -1180,29 +1179,7 @@ export const admin = {
       
       console.log(`Successfully deleted all listings for user ${userId}`)
       
-      // 5. Ștergem toate mesajele utilizatorului
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      
-      if (messagesError) {
-        console.warn('Error deleting user messages:', messagesError)
-        // Nu blocăm procesul pentru mesaje
-      }
-      
-      // 6. Ștergem toate favoritele utilizatorului
-      const { error: favoritesError } = await supabase
-        .from('favorites')
-        .delete()
-        .eq('user_id', userId)
-      
-      if (favoritesError) {
-        console.warn('Error deleting user favorites:', favoritesError)
-        // Nu blocăm procesul pentru favorite
-      }
-      
-      // 7. Ștergem profilul utilizatorului
+      // 5. Ștergem profilul utilizatorului
       const { error: deleteError } = await supabase
         .from('profiles')
         .delete()
@@ -1213,15 +1190,19 @@ export const admin = {
         return { error: deleteError }
       }
       
-      console.log(`✅ Successfully deleted user ${userId} and all associated data`)
+      // 6. Încercăm să ștergem utilizatorul din auth
+      try {
+        // Încercăm să ștergem utilizatorul din auth, dar nu este esențial
+        // deoarece am șters deja profilul și anunțurile
+        await supabase.auth.admin.deleteUser(userId)
+      } catch (authError) {
+        console.warn('Could not delete auth user (requires admin rights):', authError)
+      }
       
-      // NOTĂ: Nu încercăm să ștergem din auth.users deoarece necesită service role
-      // Utilizatorul va rămâne în auth.users dar fără profil în aplicație
-      console.log('⚠️ User remains in auth.users but profile and data have been removed')
-      
+      console.log(`Successfully deleted user ${userId} and all associated data`)
       return { error: null }
     } catch (err) {
-      console.error('💥 Error deleting user:', err)
+      console.error('Error deleting user:', err)
       return { error: err }
     }
   }

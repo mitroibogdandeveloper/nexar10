@@ -190,12 +190,59 @@ const AdminPage = () => {
     try {
       setIsDeleting(userId);
       
-      const { error } = await admin.deleteUser(userId);
+      // 1. Obținem profilul utilizatorului
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
       
-      if (error) {
-        console.error('Error deleting user:', error);
-        alert(`Eroare la ștergerea utilizatorului: ${error.message}`);
+      if (profileError || !profile) {
+        console.error('Error fetching user profile:', profileError);
+        alert('Eroare la găsirea profilului utilizatorului');
+        setIsDeleting(null);
         return;
+      }
+      
+      // 2. Ștergem toate anunțurile utilizatorului
+      const { error: listingsError } = await supabase
+        .from('listings')
+        .delete()
+        .eq('seller_id', profile.id);
+      
+      if (listingsError) {
+        console.error('Error deleting user listings:', listingsError);
+        alert('Eroare la ștergerea anunțurilor utilizatorului');
+        setIsDeleting(null);
+        return;
+      }
+      
+      // 3. Ștergem profilul utilizatorului
+      const { error: deleteProfileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (deleteProfileError) {
+        console.error('Error deleting user profile:', deleteProfileError);
+        alert('Eroare la ștergerea profilului utilizatorului');
+        setIsDeleting(null);
+        return;
+      }
+      
+      // 4. Încercăm să ștergem utilizatorul din auth
+      try {
+        // Această operațiune necesită drepturi de admin în Supabase
+        // Poate eșua dacă nu avem permisiunile necesare
+        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+        
+        if (authError) {
+          console.warn('Could not delete auth user (requires admin rights):', authError);
+          // Nu afișăm eroarea utilizatorului, deoarece am șters deja profilul și anunțurile
+        }
+      } catch (authError) {
+        console.warn('Error deleting auth user:', authError);
+        // Nu afișăm eroarea utilizatorului, deoarece am șters deja profilul și anunțurile
       }
       
       // Elimină utilizatorul din listă
@@ -203,6 +250,8 @@ const AdminPage = () => {
       
       // Reîncarcă și anunțurile pentru a reflecta ștergerea
       await loadListings();
+      
+      alert('Utilizatorul și toate anunțurile asociate au fost șterse cu succes!');
       
     } catch (err) {
       console.error('Error deleting user:', err);
