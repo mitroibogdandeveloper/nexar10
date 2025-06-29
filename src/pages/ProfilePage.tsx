@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   User, Mail, Phone, MapPin, Edit, Camera, 
   Package, Eye, MessageCircle, 
-  ChevronRight, Calendar, Shield, Building, 
+  ChevronRight, Calendar, Building, 
   Lock, AlertTriangle, CheckCircle, X, ChevronDown, RefreshCw,
   Clock, CheckCircle2
 } from 'lucide-react';
@@ -470,15 +470,6 @@ const ProfilePage = () => {
               <div className="pt-16 px-6 pb-6">
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-bold text-gray-900 mb-1">{profile.name}</h1>
-                  
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                    {profile.verified && (
-                      <div className="flex items-center text-green-600">
-                        <Shield className="h-4 w-4 mr-1" />
-                        <span>Verificat</span>
-                      </div>
-                    )}
-                  </div>
                   
                   <div className="mt-2">
                     {profile.seller_type === 'dealer' ? (

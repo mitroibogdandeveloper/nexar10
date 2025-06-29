@@ -81,7 +81,7 @@ const CreateListingPage = () => {
           ...prev,
           email: profileData.email || '',
           phone: profileData.phone || '',
-          location: profileData.location || ''
+          location: ''
         }));
       }
     } catch (error) {

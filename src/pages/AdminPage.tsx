@@ -387,7 +387,6 @@ const AdminPage = () => {
                   <option value="active">Active</option>
                   <option value="pending">În așteptare</option>
                   <option value="rejected">Respinse</option>
-                  <option value="sold">Vândute</option>
                 </select>
               )}
             </div>
@@ -512,12 +511,10 @@ const AdminPage = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             listing.status === 'active' ? 'bg-green-100 text-green-800' :
-                            listing.status === 'sold' ? 'bg-blue-100 text-blue-800' :
                             listing.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             {listing.status === 'active' ? 'Activ' :
-                             listing.status === 'sold' ? 'Vândut' :
                              listing.status === 'pending' ? 'În așteptare' :
                              'Respins'}
                           </span>
