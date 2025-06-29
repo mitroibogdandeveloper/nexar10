@@ -35,25 +35,9 @@ const ProfilePage = () => {
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [filteredCities, setFilteredCities] = useState<string[]>([]);
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Set a timeout to show an error message if loading takes too long
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('Loading timeout reached in ProfilePage');
-        setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
-        setIsLoading(false);
-      }
-    }, 15000); // 15 seconds timeout
-    
-    setLoadingTimeout(timeout);
-    
     loadProfile();
-    
-    return () => {
-      if (loadingTimeout) clearTimeout(loadingTimeout);
-    };
   }, [id]);
 
   const loadProfile = async () => {
@@ -100,10 +84,6 @@ const ProfilePage = () => {
       setError('A apărut o eroare la încărcarea profilului');
     } finally {
       setIsLoading(false);
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        setLoadingTimeout(null);
-      }
     }
   };
 
