@@ -2,27 +2,18 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
 	Search,
-	Star,
-	Shield,
-	Users,
-	TrendingUp,
-	ArrowRight,
-	CheckCircle,
-	Heart,
 	MapPin,
 	Calendar,
 	Gauge,
 	Filter,
 	X,
 	SlidersHorizontal,
-	Zap,
 	Building,
 	ChevronLeft,
 	ChevronRight,
 	RefreshCw,
 } from "lucide-react";
 import { listings, romanianCities } from "../lib/supabase";
-import FixSupabaseButton from "../components/FixSupabaseButton";
 
 const HomePage = () => {
 	const [searchParams] = useSearchParams();
@@ -84,7 +75,6 @@ const HomePage = () => {
 				mileage: listing.mileage,
 				location: listing.location,
 				images: listing.images || [],
-				rating: listing.rating || 4.5,
 				category: listing.category,
 				brand: listing.brand,
 				seller: listing.seller_name,
@@ -240,8 +230,6 @@ const HomePage = () => {
 
 	const ListingRow = ({ listing }: { listing: any }) => {
 		const [currentImageIndex, setCurrentImageIndex] = useState(0);
-		const [isFavorite, setIsFavorite] = useState(false);
-		const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 		const touchStartX = useRef<number>(0);
 		const touchEndX = useRef<number>(0);
 		const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -294,32 +282,6 @@ const HomePage = () => {
 			e.stopPropagation();
 			// Navigate to seller profile
 			navigate(`/profil/${listing.sellerId}`);
-		};
-
-		const handleToggleFavorite = async (e: React.MouseEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-
-			setIsTogglingFavorite(true);
-
-			try {
-				// Simulate toggle for now - you'll need to implement the actual logic
-				setIsFavorite(!isFavorite);
-
-				// Here you would call the actual API to add/remove from favorites
-				// const { data: { user } } = await supabase.auth.getUser();
-				// if (user) {
-				//   if (isFavorite) {
-				//     await listings.removeFromFavorites(user.id, listing.id);
-				//   } else {
-				//     await listings.addToFavorites(user.id, listing.id);
-				//   }
-				// }
-			} catch (error) {
-				console.error("Error toggling favorite:", error);
-			} finally {
-				setIsTogglingFavorite(false);
-			}
 		};
 
 		// Funcție pentru a obține imaginea corectă
@@ -397,11 +359,6 @@ const HomePage = () => {
 								{listing.category}
 							</span>
 						</div>
-						<button
-							onClick={handleToggleFavorite}
-							disabled={isTogglingFavorite}
-							className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-2 hover:bg-white transition-colors"
-						></button>
 					</div>
 
 					<div className="flex-1 p-4 sm:p-6">
@@ -442,11 +399,6 @@ const HomePage = () => {
 									)}
 								</div>
 							</div>
-
-							<div className="flex items-center space-x-1 bg-gray-50 rounded-lg px-3 py-1 self-start">
-								<Star className="h-4 w-4 text-yellow-400 fill-current" />
-								<span className="text-sm font-semibold">{listing.rating}</span>
-							</div>
 						</div>
 
 						<div className="grid grid-cols-3 gap-3 sm:gap-6 mb-4">
@@ -468,7 +420,7 @@ const HomePage = () => {
 
 						<div className="bg-nexar-accent text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-nexar-gold transition-colors inline-flex items-center space-x-2">
 							<span>Vezi Detalii</span>
-							<ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+							<ChevronRight className="h-4 w-4" />
 						</div>
 					</div>
 				</div>
@@ -733,7 +685,7 @@ const HomePage = () => {
 									</button>
 								</div>
 
-								<div className="space-y-6">
+								<div className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
 									{/* Price Range */}
 									<div>
 										<label className="block text-sm font-medium text-gray-700 mb-3">
@@ -942,7 +894,6 @@ const HomePage = () => {
 											<RefreshCw className="h-5 w-5" />
 											<span>Încearcă din nou</span>
 										</button>
-										<FixSupabaseButton buttonText="Repară Conexiunea" />
 									</div>
 								</div>
 							)}
@@ -1016,7 +967,6 @@ const HomePage = () => {
 										<RefreshCw className="h-5 w-5" />
 										<span>Încearcă din nou</span>
 									</button>
-									<FixSupabaseButton buttonText="Repară Conexiunea" />
 								</div>
 							</div>
 						)}
@@ -1205,7 +1155,7 @@ const HomePage = () => {
 
 						<div className="bg-white p-6 rounded-lg shadow-sm text-center hover:shadow-md transition-shadow border border-gray-200">
 							<div className="inline-flex items-center justify-center w-12 h-12 bg-nexar-accent/10 rounded-lg mb-4">
-								<CheckCircle className="h-6 w-6 text-nexar-accent" />
+								<Check className="h-6 w-6 text-nexar-accent" />
 							</div>
 							<h3 className="text-lg font-bold text-gray-900 mb-3">
 								Proces Simplificat

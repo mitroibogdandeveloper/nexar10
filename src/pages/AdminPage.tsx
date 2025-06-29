@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, Package, ChevronRight, User, Shield, 
+  Users, Package, User, Shield, 
   Check, X, Edit, Trash2, Eye, AlertTriangle, 
   RefreshCw, Building, UserX, UserCheck, Search,
-  Clock, CheckCircle, XCircle
+  CheckCircle, XCircle
 } from 'lucide-react';
 import { admin, supabase } from '../lib/supabase';
-import FixSupabaseButton from '../components/FixSupabaseButton';
 
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('listings');
@@ -16,7 +15,6 @@ const AdminPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isProcessing, setIsProcessing] = useState<{ [key: string]: boolean }>({});
@@ -413,7 +411,6 @@ const AdminPage = () => {
                   <RefreshCw className="h-4 w-4" />
                   <span>Reîncearcă</span>
                 </button>
-                <FixSupabaseButton buttonText="Repară Conexiunea" />
               </div>
             </div>
           )}
@@ -624,22 +621,6 @@ const AdminPage = () => {
                                   )}
                                 </button>
                               )}
-                              
-                              {/* Buton pentru marcarea ca vândut */}
-                              {listing.status !== 'sold' && (
-                                <button
-                                  onClick={() => handleUpdateListingStatus(listing.id, 'sold')}
-                                  disabled={isProcessing[listing.id]}
-                                  className="bg-blue-100 text-blue-800 p-1.5 rounded-lg hover:bg-blue-200 transition-colors"
-                                  title="Marchează ca vândut"
-                                >
-                                  {isProcessing[listing.id] ? (
-                                    <div className="h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                  ) : (
-                                    <Check className="h-5 w-5" />
-                                  )}
-                                </button>
-                              )}
                             </div>
                           </div>
                         </td>
@@ -838,7 +819,6 @@ const AdminPage = () => {
                   <RefreshCw className="h-4 w-4" />
                   <span>Reîmprospătează</span>
                 </button>
-                <FixSupabaseButton buttonText="Repară Conexiunea" />
               </div>
             </div>
           </div>

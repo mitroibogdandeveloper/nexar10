@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-	Heart,
 	Share2,
 	MapPin,
 	Calendar,
@@ -26,7 +25,6 @@ import {
 	RefreshCw,
 } from "lucide-react";
 import { listings, supabase } from "../lib/supabase";
-import FixSupabaseButton from "../components/FixSupabaseButton";
 
 const ListingDetailPage = () => {
 	const { id } = useParams();
@@ -37,8 +35,6 @@ const ListingDetailPage = () => {
 	const [listing, setListing] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [isFavorite, setIsFavorite] = useState(false);
-	const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
 	// Scroll to top when component mounts
 	useEffect(() => {
@@ -46,7 +42,6 @@ const ListingDetailPage = () => {
 
 		if (id) {
 			loadListing(id);
-			checkIfFavorite(id);
 		}
 	}, [id]);
 
@@ -133,102 +128,6 @@ const ListingDetailPage = () => {
 			setError("A apărut o eroare la încărcarea anunțului");
 		} finally {
 			setIsLoading(false);
-		}
-	};
-
-	// Verifică dacă anunțul este în lista de favorite
-	const checkIfFavorite = async (listingId: string) => {
-		try {
-			// Obținem utilizatorul curent
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-
-			if (!user) {
-				// Utilizatorul nu este autentificat
-				return;
-			}
-
-			console.log("🔍 Checking if listing is favorite for user:", user.id);
-
-			// Verificăm dacă anunțul este în lista de favorite
-			const { data, error } = await supabase
-				.from("favorites")
-				.select("*")
-				.eq("user_id", user.id)
-				.eq("listing_id", listingId);
-
-			if (error) {
-				console.error("❌ Error checking favorite status:", error);
-				return;
-			}
-
-			// Verificăm dacă există rezultate
-			const isFav = data && data.length > 0;
-			console.log("✅ Favorite check result:", isFav);
-
-			setIsFavorite(isFav);
-		} catch (err) {
-			console.error("Error in checkIfFavorite:", err);
-		}
-	};
-
-	// Adaugă/elimină anunțul din favorite
-	const toggleFavorite = async () => {
-		try {
-			setIsTogglingFavorite(true);
-
-			// Obținem utilizatorul curent
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-
-			if (!user) {
-				// Utilizatorul nu este autentificat, redirecționăm la pagina de login
-				navigate("/auth");
-				return;
-			}
-
-			console.log(
-				"🔄 Toggling favorite for listing:",
-				id,
-				"Current state:",
-				isFavorite,
-			);
-
-			if (isFavorite) {
-				// Eliminăm din favorite
-				const { error } = await supabase
-					.from("favorites")
-					.delete()
-					.match({ user_id: user.id, listing_id: id });
-
-				if (error) {
-					console.error("❌ Error removing from favorites:", error);
-					throw new Error("Eroare la eliminarea din favorite");
-				}
-
-				console.log("✅ Removed from favorites successfully");
-				setIsFavorite(false);
-			} else {
-				// Adăugăm la favorite
-				const { error } = await supabase
-					.from("favorites")
-					.insert([{ user_id: user.id, listing_id: id }]);
-
-				if (error) {
-					console.error("❌ Error adding to favorites:", error);
-					throw new Error("Eroare la adăugarea în favorite");
-				}
-
-				console.log("✅ Added to favorites successfully");
-				setIsFavorite(true);
-			}
-		} catch (err: any) {
-			console.error("💥 Error toggling favorite:", err);
-			alert(err.message || "Eroare la actualizarea favoritelor");
-		} finally {
-			setIsTogglingFavorite(false);
 		}
 	};
 
@@ -335,7 +234,6 @@ const ListingDetailPage = () => {
 						>
 							Vezi toate anunțurile
 						</Link>
-						<FixSupabaseButton buttonText="Repară Conexiunea" />
 					</div>
 				</div>
 			</div>
@@ -410,23 +308,6 @@ const ListingDetailPage = () => {
 								)}
 
 								<div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex space-x-2">
-									<button
-										onClick={toggleFavorite}
-										disabled={isTogglingFavorite}
-										className="bg-white/90 backdrop-blur-sm rounded-full p-2 sm:p-3 hover:bg-white transition-colors"
-									>
-										{isTogglingFavorite ? (
-											<div className="h-4 w-4 sm:h-5 sm:w-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
-										) : (
-											<Heart
-												className={`h-4 w-4 sm:h-5 sm:w-5 ${
-													isFavorite
-														? "text-red-500 fill-current"
-														: "text-gray-600 hover:text-red-500"
-												} transition-colors`}
-											/>
-										)}
-									</button>
 									<button className="bg-white/90 backdrop-blur-sm rounded-full p-2 sm:p-3 hover:bg-white transition-colors">
 										<Share2 className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
 									</button>
@@ -702,15 +583,6 @@ const ListingDetailPage = () => {
 									<span>Vezi pe Hartă</span>
 								</button>
 							</div>
-						</div>
-						
-						{/* Fix Connection Button */}
-						<div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-							<h3 className="text-lg font-semibold text-gray-900 mb-4">Probleme cu încărcarea?</h3>
-							<p className="text-gray-600 mb-4 text-sm">
-								Dacă întâmpini probleme cu încărcarea anunțurilor sau a imaginilor, încearcă să repari conexiunea.
-							</p>
-							<FixSupabaseButton buttonText="Repară Conexiunea" />
 						</div>
 					</div>
 				</div>
