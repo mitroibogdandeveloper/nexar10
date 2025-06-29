@@ -1,20 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import {
-	Search,
-	MapPin,
-	Calendar,
-	Gauge,
-	Filter,
-	X,
-	SlidersHorizontal,
-	Building,
-	ChevronLeft,
-	ChevronRight,
-	RefreshCw,
-	Users,
-	Check,
-	User,
+import { 
+	Search, Filter, MapPin, Calendar, Gauge, ChevronLeft, ChevronRight, Settings, Fuel, 
+	X, SlidersHorizontal, Building, RefreshCw, Users, Check, User 
 } from "lucide-react";
 import { listings, romanianCities, supabase } from "../lib/supabase";
 
@@ -22,20 +10,21 @@ const HomePage = () => {
 	const [searchParams] = useSearchParams();
 	// On desktop, show filters by default. On mobile, hide them by default
 	const [showFilters, setShowFilters] = useState(window.innerWidth >= 1024);
-	const [searchQuery, setSearchQuery] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
+	const [searchQuery, setSearchQuery] = useState("");
 	const [filters, setFilters] = useState({
-		priceMin: "",
-		priceMax: "",
-		category: searchParams.get("categorie") || "",
-		brand: "",
-		yearMin: "",
-		yearMax: "",
-		location: "",
+		priceMin: '',
+		priceMax: '',
+		category: searchParams.get("categorie") || '',
+		brand: '',
+		yearMin: '',
+		yearMax: '',
+		location: '',
 	});
 	const [allListings, setAllListings] = useState<any[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [userScrolled, setUserScrolled] = useState(false);
 	const navigate = useNavigate();
 	const itemsPerPage = 10; // Show 10 listings per page
 
@@ -52,23 +41,33 @@ const HomePage = () => {
 		}
 	}, [searchParams]);
 
+	// Track scroll position to prevent auto-hiding filters on mobile
+	useEffect(() => {
+		const handleScroll = () => {
+			setUserScrolled(true);
+		};
+
+		window.addEventListener('scroll', handleScroll);
+		return () => window.removeEventListener('scroll', handleScroll);
+	}, []);
+
 	const loadListings = async () => {
 		try {
 			setIsLoading(true);
 			setError(null);
 
-			console.log("🔄 Loading listings from Supabase...");
-
+			console.log('🔄 Loading listings from Supabase...');
+			
 			const { data, error } = await listings.getAll();
-
+			
 			if (error) {
-				console.error("❌ Error loading listings:", error);
-				setError("Nu s-au putut încărca anunțurile");
+				console.error('❌ Error loading listings:', error);
+				setError('Nu s-au putut încărca anunțurile');
 				return;
 			}
-
-			console.log("✅ Loaded listings:", data?.length || 0);
-
+			
+			console.log('✅ Loaded listings:', data?.length || 0);
+			
 			// Formatăm datele pentru afișare
 			const formattedListings = (data || []).map((listing: any) => ({
 				id: listing.id,
@@ -86,11 +85,12 @@ const HomePage = () => {
 				sellerType: listing.seller_type,
 				featured: listing.featured || false,
 			}));
-
+			
 			setAllListings(formattedListings);
+			
 		} catch (err) {
-			console.error("💥 Error in loadListings:", err);
-			setError("A apărut o eroare la încărcarea anunțurilor");
+			console.error('💥 Error in loadListings:', err);
+			setError('A apărut o eroare la încărcarea anunțurilor');
 		} finally {
 			setIsLoading(false);
 		}
@@ -99,7 +99,10 @@ const HomePage = () => {
 	// Update showFilters state when window is resized
 	useEffect(() => {
 		const handleResize = () => {
-			setShowFilters(window.innerWidth >= 1024);
+			if (window.innerWidth >= 1024) {
+				setShowFilters(true);
+			}
+			// Don't auto-hide on mobile when resizing
 		};
 
 		window.addEventListener("resize", handleResize);
@@ -108,11 +111,10 @@ const HomePage = () => {
 
 	// Filtrare și căutare
 	const filteredListings = useMemo(() => {
-		return allListings.filter((listing) => {
+		return allListings.filter(listing => {
 			// Căutare în text
 			const searchLower = searchQuery.toLowerCase();
-			const matchesSearch =
-				!searchQuery ||
+			const matchesSearch = !searchQuery || 
 				listing.title.toLowerCase().includes(searchLower) ||
 				listing.brand.toLowerCase().includes(searchLower) ||
 				listing.model.toLowerCase().includes(searchLower) ||
@@ -121,31 +123,23 @@ const HomePage = () => {
 				listing.seller.toLowerCase().includes(searchLower);
 
 			// Filtre
-			const matchesPrice =
-				(!filters.priceMin || listing.price >= parseInt(filters.priceMin)) &&
-				(!filters.priceMax || listing.price <= parseInt(filters.priceMax));
-
-			const matchesCategory =
-				!filters.category ||
+			const matchesPrice = (!filters.priceMin || listing.price >= parseInt(filters.priceMin)) &&
+								(!filters.priceMax || listing.price <= parseInt(filters.priceMax));
+			
+			const matchesCategory = !filters.category || 
 				listing.category.toLowerCase() === filters.category.toLowerCase();
-			const matchesBrand =
-				!filters.brand ||
+			
+			const matchesBrand = !filters.brand || 
 				listing.brand.toLowerCase() === filters.brand.toLowerCase();
-			const matchesYear =
-				(!filters.yearMin || listing.year >= parseInt(filters.yearMin)) &&
-				(!filters.yearMax || listing.year <= parseInt(filters.yearMax));
-			const matchesLocation =
-				!filters.location ||
+			
+			const matchesYear = (!filters.yearMin || listing.year >= parseInt(filters.yearMin)) &&
+							   (!filters.yearMax || listing.year <= parseInt(filters.yearMax));
+			
+			const matchesLocation = !filters.location || 
 				listing.location.toLowerCase().includes(filters.location.toLowerCase());
 
-			return (
-				matchesSearch &&
-				matchesPrice &&
-				matchesCategory &&
-				matchesBrand &&
-				matchesYear &&
-				matchesLocation
-			);
+			return matchesSearch && matchesPrice && matchesCategory && matchesBrand && 
+				   matchesYear && matchesLocation;
 		});
 	}, [searchQuery, filters, allListings]);
 
@@ -156,21 +150,21 @@ const HomePage = () => {
 	const currentListings = filteredListings.slice(startIndex, endIndex);
 
 	const handleFilterChange = (key: string, value: string) => {
-		setFilters((prev) => ({ ...prev, [key]: value }));
+		setFilters(prev => ({ ...prev, [key]: value }));
 		setCurrentPage(1); // Reset to first page when filtering
 	};
 
 	const clearFilters = () => {
 		setFilters({
-			priceMin: "",
-			priceMax: "",
-			category: "",
-			brand: "",
-			yearMin: "",
-			yearMax: "",
-			location: "",
+			priceMin: '',
+			priceMax: '',
+			category: '',
+			brand: '',
+			yearMin: '',
+			yearMax: '',
+			location: '',
 		});
-		setSearchQuery("");
+		setSearchQuery('');
 		setCurrentPage(1);
 		// Clear URL params
 		navigate("/", { replace: true });
@@ -185,42 +179,34 @@ const HomePage = () => {
 	const categories = [
 		{
 			name: "Sport",
-			count: "245 anunțuri",
 			image: "https://images.pexels.com/photos/2393821/pexels-photo-2393821.jpeg",
 		},
 		{
 			name: "Touring",
-			count: "189 anunțuri",
 			image: "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg",
 		},
 		{
 			name: "Cruiser",
-			count: "156 anunțuri",
 			image: "https://images.pexels.com/photos/1413412/pexels-photo-1413412.jpeg",
 		},
 		{
 			name: "Adventure",
-			count: "203 anunțuri",
 			image: "https://images.pexels.com/photos/163210/motorcycle-racer-racing-race-163210.jpeg",
 		},
 		{
 			name: "Naked",
-			count: "178 anunțuri",
 			image: "https://images.pexels.com/photos/1715193/pexels-photo-1715193.jpeg",
 		},
 		{
 			name: "Enduro",
-			count: "142 anunțuri",
 			image: "https://images.pexels.com/photos/2611690/pexels-photo-2611690.jpeg",
 		},
 		{
 			name: "Scooter",
-			count: "134 anunțuri",
 			image: "https://images.pexels.com/photos/5214413/pexels-photo-5214413.jpeg",
 		},
 		{
 			name: "Chopper",
-			count: "98 anunțuri",
 			image: "https://images.pexels.com/photos/595807/pexels-photo-595807.jpeg",
 		},
 	];
@@ -393,7 +379,7 @@ const HomePage = () => {
 								{/* EVIDENȚIERE DEALER MULT MAI PRONUNȚATĂ */}
 								<div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
 									<div className="flex items-center space-x-2 text-sm text-gray-600">
-										<div className="flex-shrink-0 w-6 h-6 rounded-full overflow-hidden border border-gray-200">
+										<div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border border-gray-200">
 											{sellerAvatar ? (
 												<img 
 													src={sellerAvatar} 
@@ -1152,7 +1138,6 @@ const HomePage = () => {
 								<div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
 								<div className="absolute bottom-0 left-0 right-0 p-3 text-white">
 									<h3 className="font-bold mb-1">{category.name}</h3>
-									<p className="text-xs text-gray-200">{category.count}</p>
 								</div>
 							</Link>
 						))}

@@ -369,11 +369,11 @@ const CreateListingPage = () => {
       
       // Afișăm modal-ul de succes
       setShowSuccessModal(true);
-      setIsSubmitting(false);
       
     } catch (error: any) {
       console.error('💥 Error creating listing:', error);
       setErrors({ submit: error.message || 'A apărut o eroare la publicarea anunțului. Te rog încearcă din nou.' });
+    } finally {
       setIsSubmitting(false);
     }
   };
