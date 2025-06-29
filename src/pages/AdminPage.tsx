@@ -41,7 +41,7 @@ const AdminPage = () => {
       
       // Încarcă datele în funcție de tab-ul activ
       if (activeTab === 'listings') {
-        await loadListings();
+        await loadAllListings();
       } else if (activeTab === 'users') {
         await loadUsers();
       }
@@ -54,13 +54,24 @@ const AdminPage = () => {
     }
   };
 
-  const loadListings = async () => {
+  const loadAllListings = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Folosim getAllForAdmin pentru a obține TOATE anunțurile, inclusiv cele în așteptare
-      const { data, error } = await admin.getAllListings();
+      // Folosim query direct pentru a obține TOATE anunțurile
+      const { data, error } = await supabase
+        .from('listings')
+        .select(`
+          *,
+          profiles!listings_seller_id_fkey (
+            name,
+            email,
+            seller_type,
+            verified
+          )
+        `)
+        .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Error loading listings:', error);
@@ -105,7 +116,7 @@ const AdminPage = () => {
     setSearchQuery('');
     
     if (tab === 'listings' && listings.length === 0) {
-      await loadListings();
+      await loadAllListings();
     } else if (tab === 'users' && users.length === 0) {
       await loadUsers();
     }
@@ -246,7 +257,7 @@ const AdminPage = () => {
       setUsers(prev => prev.filter(user => user.user_id !== userId));
       
       // Reîncarcă și anunțurile pentru a reflecta ștergerea
-      await loadListings();
+      await loadAllListings();
       
       alert('Utilizatorul și toate anunțurile asociate au fost șterse cu succes din baza de date!');
       
@@ -480,10 +491,10 @@ const AdminPage = () => {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                                {listing.title}
+                                {listing.brand} {listing.model}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {listing.brand} {listing.model}
+                                {listing.title}
                               </div>
                             </div>
                           </div>
@@ -809,7 +820,7 @@ const AdminPage = () => {
                 <button
                   onClick={() => {
                     if (activeTab === 'listings') {
-                      loadListings();
+                      loadAllListings();
                     } else {
                       loadUsers();
                     }

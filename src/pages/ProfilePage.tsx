@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   User, Mail, Phone, MapPin, Edit, Camera, 
@@ -42,7 +42,6 @@ const ProfilePage = () => {
     const timeout = setTimeout(() => {
       if (isLoading) {
         console.warn('Loading timeout reached in ProfilePage');
-        setError('Încărcarea durează mai mult decât de obicei. Te rugăm să reîmprospătezi pagina sau să verifici conexiunea.');
         setIsLoading(false);
       }
     }, 15000); // 15 seconds timeout
@@ -525,43 +524,51 @@ const ProfilePage = () => {
                         placeholder="0790 45 46 47"
                       />
                     </div>
-                    
-                    <div>
+
+                    <div className="relative">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Locația
                       </label>
-                      <select
-                        value={editedProfile.location || ''}
-                        onChange={(e) => handleInputChange('location', e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
-                      >
-                        <option value="">Selectează orașul</option>
-                        <option value="București S1">București S1</option>
-                        <option value="București S2">București S2</option>
-                        <option value="București S3">București S3</option>
-                        <option value="București S4">București S4</option>
-                        <option value="București S5">București S5</option>
-                        <option value="București S6">București S6</option>
-                        <option value="Cluj-Napoca">Cluj-Napoca</option>
-                        <option value="Timișoara">Timișoara</option>
-                        <option value="Iași">Iași</option>
-                        <option value="Constanța">Constanța</option>
-                        <option value="Brașov">Brașov</option>
-                        <option value="Craiova">Craiova</option>
-                        <option value="Galați">Galați</option>
-                        <option value="Oradea">Oradea</option>
-                        <option value="Ploiești">Ploiești</option>
-                        <option value="Sibiu">Sibiu</option>
-                        <option value="Bacău">Bacău</option>
-                        <option value="Râmnicu Vâlcea">Râmnicu Vâlcea</option>
-                        {romanianCities.map(city => (
-                          !city.startsWith("București") && 
-                          city !== "Râmnicu Vâlcea" && 
-                          city !== "Rm. Vâlcea" && (
-                            <option key={city} value={city}>{city}</option>
-                          )
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={editedProfile.location || ''}
+                          onChange={(e) => handleLocationChange(e.target.value)}
+                          onFocus={() => {
+                            if (editedProfile.location.length > 0) {
+                              const filtered = romanianCities.filter(city =>
+                                city.toLowerCase().includes(editedProfile.location.toLowerCase())
+                              ).slice(0, 10);
+                              setFilteredCities(filtered);
+                              setShowLocationDropdown(true);
+                            }
+                          }}
+                          onBlur={() => {
+                            // Delay pentru a permite click-ul pe opțiuni
+                            setTimeout(() => setShowLocationDropdown(false), 200);
+                          }}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-nexar-accent focus:border-transparent"
+                          placeholder="Începe să scrii orașul..."
+                          autoComplete="off"
+                        />
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        
+                        {/* Dropdown cu orașe */}
+                        {showLocationDropdown && filteredCities.length > 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            {filteredCities.map((city, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => selectCity(city)}
+                                className="w-full text-left px-4 py-2 hover:bg-nexar-accent hover:text-white transition-colors text-sm border-b border-gray-100 last:border-b-0"
+                              >
+                                {city}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div>
@@ -866,7 +873,7 @@ const ProfilePage = () => {
                             <div className="flex-1 p-4">
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.title}</h3>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.brand} {listing.model}</h3>
                                   <div className="text-xl font-bold text-nexar-accent mb-2">€{listing.price.toLocaleString()}</div>
                                 </div>
                                 
@@ -990,7 +997,7 @@ const ProfilePage = () => {
                             <div className="flex-1 p-4">
                               <div className="flex justify-between items-start">
                                 <div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.title}</h3>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{listing.brand} {listing.model}</h3>
                                   <div className="text-xl font-bold text-nexar-accent mb-2">€{listing.price.toLocaleString()}</div>
                                 </div>
                                 

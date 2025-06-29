@@ -104,6 +104,8 @@ const ListingDetailPage = () => {
 					type: data.seller_type,
 				},
 				category: data.category,
+				brand: data.brand,
+				model: data.model,
 				engine: `${data.engine_capacity}cc`,
 				fuel: data.fuel_type,
 				transmission: data.transmission,
@@ -354,7 +356,7 @@ const ListingDetailPage = () => {
 										>
 											<img
 												src={image}
-												alt={`${listing.title} ${index + 1}`}
+												alt={`${listing.brand} ${listing.model} ${index + 1}`}
 												className="w-full h-full object-cover"
 												onError={(e) => {
 													// Fallback la imagine placeholder dacă imaginea nu se încarcă
@@ -374,7 +376,7 @@ const ListingDetailPage = () => {
 							<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6">
 								<div className="mb-4 sm:mb-0">
 									<h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-										{listing.title}
+										{listing.brand} {listing.model}
 									</h1>
 									<div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-gray-600 text-sm">
 										<span className="flex items-center space-x-1">

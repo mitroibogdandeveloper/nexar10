@@ -731,9 +731,9 @@ export const listings = {
       console.log('✅ Listing updated successfully:', id)
       return { data, error: null }
       
-    } catch (err: any) {
-      console.error('💥 Error in listings.update:', err)
-      return { data: null, error: err }
+    } catch (error: any) {
+      console.error('💥 Error in listings.update:', error)
+      return { data: null, error: error }
     }
   },
 

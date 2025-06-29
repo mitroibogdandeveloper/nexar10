@@ -17,8 +17,6 @@ import {
 	Check,
 } from "lucide-react";
 import { listings, romanianCities } from "../lib/supabase";
-import { enhancedListings, checkConnection } from "../lib/supabase-enhanced";
-import NetworkErrorHandler from "../components/NetworkErrorHandler";
 
 const HomePage = () => {
 	const [searchParams] = useSearchParams();
@@ -38,8 +36,6 @@ const HomePage = () => {
 	const [allListings, setAllListings] = useState<any[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [networkError, setNetworkError] = useState<any>(null);
-	const [connectionStatus, setConnectionStatus] = useState<any>(null);
 	const navigate = useNavigate();
 	const itemsPerPage = 6; // Show 6 listings per page
 
@@ -56,62 +52,17 @@ const HomePage = () => {
 		}
 	}, [searchParams]);
 
-	// Check connection on component mount
-	useEffect(() => {
-		checkSupabaseConnection();
-	}, []);
-
-	const checkSupabaseConnection = async () => {
-		try {
-			const status = await checkConnection();
-			setConnectionStatus(status);
-			
-			if (!status.success) {
-				console.warn('⚠️ Connection issues detected:', status);
-			}
-		} catch (err) {
-			console.error('❌ Connection check failed:', err);
-			setConnectionStatus({
-				success: false,
-				error: 'Failed to check connection',
-				guidance: 'Please check your network connection'
-			});
-		}
-	};
-
 	const loadListings = async () => {
 		try {
 			setIsLoading(true);
 			setError(null);
-			setNetworkError(null);
 
 			console.log("🔄 Loading listings from Supabase...");
 
-			// Try enhanced listings first (with retry logic)
-			let data, error;
-			try {
-				const result = await enhancedListings.getAll(filters);
-				data = result.data;
-				error = result.error;
-			} catch (enhancedError) {
-				console.warn('⚠️ Enhanced client failed, falling back to regular client:', enhancedError);
-				// Fallback to regular client
-				const result = await listings.getAll(filters);
-				data = result.data;
-				error = result.error;
-			}
+			const { data, error } = await listings.getAll();
 
 			if (error) {
 				console.error("❌ Error loading listings:", error);
-				
-				// Check if it's a network error
-				if (error.message?.includes('NetworkError') || 
-				    error.message?.includes('fetch') ||
-				    error.message?.includes('Failed to fetch')) {
-					setNetworkError(error);
-					return;
-				}
-				
 				setError("Nu s-au putut încărca anunțurile");
 				return;
 			}
@@ -129,6 +80,7 @@ const HomePage = () => {
 				images: listing.images || [],
 				category: listing.category,
 				brand: listing.brand,
+				model: listing.model,
 				seller: listing.seller_name,
 				sellerId: listing.seller_id,
 				sellerType: listing.seller_type,
@@ -136,17 +88,9 @@ const HomePage = () => {
 			}));
 
 			setAllListings(formattedListings);
-		} catch (err: any) {
+		} catch (err) {
 			console.error("💥 Error in loadListings:", err);
-			
-			// Check if it's a network error
-			if (err.message?.includes('NetworkError') || 
-			    err.message?.includes('fetch') ||
-			    err.message?.includes('Failed to fetch')) {
-				setNetworkError(err);
-			} else {
-				setError("A apărut o eroare la încărcarea anunțurilor");
-			}
+			setError("A apărut o eroare la încărcarea anunțurilor");
 		} finally {
 			setIsLoading(false);
 		}
@@ -171,6 +115,7 @@ const HomePage = () => {
 				!searchQuery ||
 				listing.title.toLowerCase().includes(searchLower) ||
 				listing.brand.toLowerCase().includes(searchLower) ||
+				listing.model.toLowerCase().includes(searchLower) ||
 				listing.category.toLowerCase().includes(searchLower) ||
 				listing.location.toLowerCase().includes(searchLower) ||
 				listing.seller.toLowerCase().includes(searchLower);
@@ -425,7 +370,7 @@ const HomePage = () => {
 						<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3">
 							<div>
 								<h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-nexar-accent transition-colors mb-2">
-									{listing.title}
+									{listing.brand} {listing.model}
 								</h3>
 								<div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
 									€{listing.price.toLocaleString()}
@@ -539,19 +484,6 @@ const HomePage = () => {
 			{/* Featured Listings with Filters */}
 			<section className="py-8 sm:py-16 bg-gray-50">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					{/* Connection Status Warning */}
-					{connectionStatus && !connectionStatus.success && (
-						<div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-							<div className="flex items-center space-x-2">
-								<RefreshCw className="h-5 w-5 text-yellow-600" />
-								<div>
-									<p className="text-yellow-800 font-medium">Problemă de conectivitate detectată</p>
-									<p className="text-yellow-700 text-sm">{connectionStatus.guidance}</p>
-								</div>
-							</div>
-						</div>
-					)}
-
 					{/* Mobile-friendly layout */}
 					<div className="block lg:hidden mb-6">
 						<button
@@ -938,17 +870,8 @@ const HomePage = () => {
 								</p>
 							</div>
 
-							{/* Network Error Handler */}
-							{networkError && !isLoading && (
-								<NetworkErrorHandler 
-									error={networkError} 
-									onRetry={loadListings}
-									onDiagnose={() => navigate('/fix-supabase')}
-								/>
-							)}
-
 							{/* Loading State */}
-							{isLoading && !networkError && (
+							{isLoading && (
 								<div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
 									<div className="w-16 h-16 border-4 border-nexar-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
 									<h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -959,7 +882,7 @@ const HomePage = () => {
 							)}
 
 							{/* Error State */}
-							{error && !isLoading && !networkError && (
+							{error && !isLoading && (
 								<div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
 									<div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
 										<X className="h-8 w-8 text-red-500" />
@@ -981,7 +904,7 @@ const HomePage = () => {
 							)}
 
 							{/* No Results */}
-							{!isLoading && !error && !networkError && filteredListings.length === 0 && (
+							{!isLoading && !error && filteredListings.length === 0 && (
 								<div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
 									<Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
 									<h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -1011,7 +934,7 @@ const HomePage = () => {
 							)}
 
 							{/* Listings */}
-							{!isLoading && !error && !networkError && filteredListings.length > 0 && (
+							{!isLoading && !error && filteredListings.length > 0 && (
 								<div className="space-y-4">
 									{currentListings.map((listing) => (
 										<ListingRow key={listing.id} listing={listing} />
@@ -1023,17 +946,8 @@ const HomePage = () => {
 
 					{/* Mobile Listings - Show directly after filters button */}
 					<div className="block lg:hidden">
-						{/* Network Error Handler */}
-						{networkError && !isLoading && (
-							<NetworkErrorHandler 
-								error={networkError} 
-								onRetry={loadListings}
-								onDiagnose={() => navigate('/fix-supabase')}
-							/>
-						)}
-
 						{/* Loading State */}
-						{isLoading && !networkError && (
+						{isLoading && (
 							<div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
 								<div className="w-12 h-12 border-4 border-nexar-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
 								<p className="text-gray-600">Se încarcă anunțurile...</p>
@@ -1041,7 +955,7 @@ const HomePage = () => {
 						)}
 
 						{/* Error State */}
-						{error && !isLoading && !networkError && (
+						{error && !isLoading && (
 							<div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
 								<div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
 									<X className="h-6 w-6 text-red-500" />
@@ -1063,7 +977,7 @@ const HomePage = () => {
 						)}
 
 						{/* No Results */}
-						{!isLoading && !error && !networkError && filteredListings.length === 0 && (
+						{!isLoading && !error && filteredListings.length === 0 && (
 							<div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
 								<Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
 								<h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -1093,7 +1007,7 @@ const HomePage = () => {
 						)}
 
 						{/* Mobile Listings */}
-						{!isLoading && !error && !networkError && filteredListings.length > 0 && (
+						{!isLoading && !error && filteredListings.length > 0 && (
 							<div className="space-y-4">
 								{currentListings.map((listing) => (
 									<ListingRow key={listing.id} listing={listing} />
@@ -1105,7 +1019,6 @@ const HomePage = () => {
 					{/* Pagination - Show on all devices */}
 					{!isLoading &&
 						!error &&
-						!networkError &&
 						filteredListings.length > 0 &&
 						totalPages > 1 && (
 							<div className="mt-8 flex justify-center">
